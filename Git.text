@@ -8,5 +8,5 @@ git push -u origin main
 
 
 git add .
-git commit -m "feat:Footer section complete"
+git commit -m "feat: login & registered page design completed"
 git push
