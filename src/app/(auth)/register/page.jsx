@@ -1,201 +1,319 @@
 "use client";
-import React, { useState } from 'react';
-import NextLink from 'next/link';
-import Image from 'next/image';
-import { FaGoogle, FaRegEye, FaRegEyeSlash, FaUser, FaPalette, FaEnvelope, FaLock } from 'react-icons/fa';
+import React, { useState } from "react";
+import NextLink from "next/link";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import {
+  FaGoogle,
+  FaRegEye,
+  FaRegEyeSlash,
+  FaUser,
+  FaPalette,
+  FaEnvelope,
+  FaLock,
+} from "react-icons/fa";
+import { signUp } from "@/lib/auth-client";
+import toast from "react-hot-toast";
 
 const RegisterPage = () => {
-    const [showPassword, setShowPassword] = useState(false);
-    const [formData, setFormData] = useState({ 
-        name: '', 
-        email: '', 
-        password: '',
-        role: 'buyer'
-    });
+  const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    role: "buyer",
+  });
 
-    const handleRoleSelect = (selectedRole) => {
-        setFormData(prev => ({ ...prev, role: selectedRole }));
-    };
+  // Dynamically track field inputs
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        console.log("Form data submitted:", formData);
-    };
+  // Explicitly handle customized user roles inside state structure
+  const handleRoleSelect = (selectedRole) => {
+    setFormData((prev) => ({ ...prev, role: selectedRole }));
+  };
 
-    return (
-        <div 
-            className="min-h-[calc(100vh-64px)] w-full flex items-center justify-center bg-[#243239] px-4 py-12"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
-        >
-            <div className="w-full max-w-md bg-[#2f3f48] rounded-2xl shadow-2xl border border-white/10 p-8 space-y-6">
-                
-                {/* Header Section */}
-                <div className="text-center space-y-2">
-                    <NextLink href="/" className="inline-flex items-center gap-2.5 justify-center group">
-                        <Image 
-                            src="/Images/ArtHubLogo.png" 
-                            alt="ArtHub Logo" 
-                            width={36} 
-                            height={36} 
-                            className="object-contain" 
-                        />
-                        <span className="text-2xl font-bold tracking-tight text-white">
-                            Art<span className="text-[#df6742]">Hub</span>
-                        </span>
-                    </NextLink>
-                    <h2 className="text-xl font-bold text-white pt-2">Create Account</h2>
-                    <p className="text-xs text-white/60">Join the community to showcase or buy creative arts.</p>
-                </div>
+  // Handle client-side registration workflow
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    
-                    {/* Role Selection Option */}
-                    <div className="form-control w-full">
-                        <label className="label py-1">
-                            <span className="label-text text-white/70 text-xs font-semibold">Join As A</span>
-                        </label>
-                        <div className="grid grid-cols-2 gap-3 mt-1">
-                            <button
-                                type="button"
-                                onClick={() => handleRoleSelect('buyer')}
-                                className={`flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-bold transition-all ${
-                                    formData.role === 'buyer'
-                                        ? "bg-[#df6742] text-white border-[#df6742] shadow-lg shadow-[#df6742]/20"
-                                        : "bg-white/5 text-white/60 border-white/10 hover:border-white/20 hover:bg-white/10"
-                                }`}
-                            >
-                                <FaUser className="w-3.5 h-3.5" />
-                                <span>User (Buyer)</span>
-                            </button>
+    // Initial structural verification for matching credentials
+    if (formData.password !== formData.confirmPassword) {
+      toast.error("Passwords do not match!", { duration: 3000 });
+      setLoading(false);
+      return;
+    }
 
-                            <button
-                                type="button"
-                                onClick={() => handleRoleSelect('artist')}
-                                className={`flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-bold transition-all ${
-                                    formData.role === 'artist'
-                                        ? "bg-[#df6742] text-white border-[#df6742] shadow-lg shadow-[#df6742]/20"
-                                        : "bg-white/5 text-white/60 border-white/10 hover:border-white/20 hover:bg-white/10"
-                                }`}
-                            >
-                                <FaPalette className="w-3.5 h-3.5" />
-                                <span>Artist</span>
-                            </button>
-                        </div>
-                    </div>
+    try {
+      await signUp.email(
+        {
+          email: formData.email,
+          password: formData.password,
+          name: formData.name,
+          role: formData.role, // Direct property transmission for accurate backend assignment
+          callbackURL: "/",
+        },
+        {
+          onRequest: () => setLoading(true),
+          onSuccess: () => {
+            setLoading(false);
+            // Flash a success notification persisting for 3 seconds
+            toast.success("Registration Successful! Welcome to ArtHub.", {
+              duration: 3000,
+            });
 
-                    {/* Full Name Input Field */}
-                    <div className="form-control w-full">
-                        <label className="label py-1">
-                            <span className="label-text text-white/70 text-xs font-semibold">Full Name</span>
-                        </label>
-                        <div className="relative w-full">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
-                                <FaUser className="w-4 h-4" />
-                            </span>
-                            <input 
-                                type="text" 
-                                name="name"
-                                placeholder="John Doe" 
-                                value={formData.name}
-                                onChange={handleInputChange}
-                                className="w-full pl-11 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#df6742] transition-colors"
-                                required
-                            />
-                        </div>
-                    </div>
+            // Delay the redirect so users can see the success message
+            setTimeout(() => {
+              router.push("/");
+              router.refresh();
+            }, 2000);
+          },
+          onError: (ctx) => {
+            setLoading(false);
+            // Flash dynamic server exceptions or generic defaults for 3 seconds
+            toast.error(
+              ctx.error.message || "Registration failed. Try again.",
+              { duration: 3000 },
+            );
+          },
+        },
+      );
+    } catch (err) {
+      setLoading(false);
+      toast.error("An unexpected error occurred.", { duration: 3000 });
+      console.error(err);
+    }
+  };
 
-                    {/* Email Address Input Field */}
-                    <div className="form-control w-full">
-                        <label className="label py-1">
-                            <span className="label-text text-white/70 text-xs font-semibold">Email Address</span>
-                        </label>
-                        <div className="relative w-full">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
-                                <FaEnvelope className="w-4 h-4" />
-                            </span>
-                            <input 
-                                type="email" 
-                                name="email"
-                                placeholder="yourname@example.com" 
-                                value={formData.email}
-                                onChange={handleInputChange}
-                                className="w-full pl-11 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#df6742] transition-colors"
-                                required
-                            />
-                        </div>
-                    </div>
-
-                    {/* Password Input Field with Visibility Toggle */}
-                    <div className="form-control w-full">
-                        <label className="label py-1">
-                            <span className="label-text text-white/70 text-xs font-semibold">Password</span>
-                        </label>
-                        <div className="relative w-full">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
-                                <FaLock className="w-4 h-4" />
-                            </span>
-                            <input 
-                                type={showPassword ? "text" : "password"} 
-                                name="password"
-                                placeholder="••••••••" 
-                                value={formData.password}
-                                onChange={handleInputChange}
-                                className="w-full pl-11 pr-10 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#df6742] transition-colors"
-                                required
-                            />
-                            <button 
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
-                                aria-label={showPassword ? "Hide password" : "Show password"}
-                            >
-                                {showPassword ? <FaRegEyeSlash className="w-4 h-4" /> : <FaRegEye className="w-4 h-4" />}
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Submit Registration Button */}
-                    <button 
-                        type="submit"
-                        className="w-full py-3 bg-[#df6742] hover:bg-[#c55332] text-white text-sm font-bold rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-[#df6742]/10 mt-2"
-                    >
-                        Sign Up
-                    </button>
-                </form>
-
-                {/* Divider Line */}
-                <div className="relative flex py-2 items-center">
-                    <div className="grow border-t border-white/10"></div>
-                    <span className="shrink mx-4 text-white/40 text-xs font-semibold uppercase tracking-wider">or</span>
-                    <div className="grow border-t border-white/10"></div>
-                </div>
-
-                {/* OAuth Integration Button */}
-                <button 
-                    type="button"
-                    onClick={() => console.log("Google registration triggered")}
-                    className="w-full flex items-center justify-center gap-3 py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 text-sm font-bold rounded-xl transition-all active:scale-[0.98]"
-                >
-                    <FaGoogle className="w-4 h-4 text-white" />
-                    <span>Sign Up with Google</span>
-                </button>
-
-                {/* Account Navigation Link */}
-                <p className="text-center text-xs text-white/60 pt-2">
-                    Already have an account?{' '}
-                    <NextLink href="/login" className="text-[#df6742] hover:underline font-bold">
-                        Log In Here
-                    </NextLink>
-                </p>
-
-            </div>
+  return (
+    <div
+      className="min-h-[calc(100vh-64px)] w-full flex items-center justify-center bg-[#243239] px-4 py-12"
+      style={{ fontFamily: "'Montserrat', sans-serif" }}
+    >
+      <div className="w-full max-w-md bg-[#2f3f48] rounded-2xl shadow-2xl border border-white/10 p-8 space-y-6">
+        {/* Header Section */}
+        <div className="text-center space-y-2">
+          <NextLink
+            href="/"
+            className="inline-flex items-center gap-2.5 justify-center group"
+          >
+            <Image
+              src="/Images/ArtHubLogo.png"
+              alt="ArtHub Logo"
+              width={36}
+              height={36}
+              className="object-contain"
+            />
+            <span className="text-2xl font-bold tracking-tight text-white">
+              Art<span className="text-[#df6742]">Hub</span>
+            </span>
+          </NextLink>
+          <h2 className="text-xl font-bold text-white pt-2">Create Account</h2>
+          <p className="text-xs text-white/60">
+            Join the community to showcase or buy creative arts.
+          </p>
         </div>
-    );
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Role Selection Option */}
+          <div className="form-control w-full">
+            <label className="label py-1">
+              <span className="label-text text-white/70 text-xs font-semibold">
+                Join As A
+              </span>
+            </label>
+            <div className="grid grid-cols-2 gap-3 mt-1">
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => handleRoleSelect("buyer")}
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-bold transition-all ${
+                  formData.role === "buyer"
+                    ? "bg-[#df6742] text-white border-[#df6742] shadow-lg shadow-[#df6742]/20"
+                    : "bg-white/5 text-white/60 border-white/10 hover:border-white/20 hover:bg-white/10"
+                }`}
+              >
+                <FaUser className="w-3.5 h-3.5" />
+                <span>User (Buyer)</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => handleRoleSelect("artist")}
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl border text-sm font-bold transition-all ${
+                  formData.role === "artist"
+                    ? "bg-[#df6742] text-white border-[#df6742] shadow-lg shadow-[#df6742]/20"
+                    : "bg-white/5 text-white/60 border-white/10 hover:border-white/20 hover:bg-white/10"
+                }`}
+              >
+                <FaPalette className="w-3.5 h-3.5" />
+                <span>Artist</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Full Name Input Field */}
+          <div className="form-control w-full">
+            <label className="label py-1">
+              <span className="label-text text-white/70 text-xs font-semibold">
+                Full Name
+              </span>
+            </label>
+            <div className="relative w-full">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
+                <FaUser className="w-4 h-4" />
+              </span>
+              <input
+                type="text"
+                name="name"
+                placeholder="John Doe"
+                value={formData.name}
+                onChange={handleInputChange}
+                className="w-full pl-11 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#df6742] transition-colors"
+                required
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          {/* Email Address Input Field */}
+          <div className="form-control w-full">
+            <label className="label py-1">
+              <span className="label-text text-white/70 text-xs font-semibold">
+                Email Address
+              </span>
+            </label>
+            <div className="relative w-full">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
+                <FaEnvelope className="w-4 h-4" />
+              </span>
+              <input
+                type="email"
+                name="email"
+                placeholder="yourname@example.com"
+                value={formData.email}
+                onChange={handleInputChange}
+                className="w-full pl-11 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#df6742] transition-colors"
+                required
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          {/* Password Input Field */}
+          <div className="form-control w-full">
+            <label className="label py-1">
+              <span className="label-text text-white/70 text-xs font-semibold">
+                Password
+              </span>
+            </label>
+            <div className="relative w-full">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
+                <FaLock className="w-4 h-4" />
+              </span>
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleInputChange}
+                className="w-full pl-11 pr-10 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#df6742] transition-colors"
+                required
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                disabled={loading}
+              >
+                {showPassword ? (
+                  <FaRegEyeSlash className="w-4 h-4" />
+                ) : (
+                  <FaRegEye className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Confirm Password Input Field */}
+          <div className="form-control w-full">
+            <label className="label py-1">
+              <span className="label-text text-white/70 text-xs font-semibold">
+                Confirm Password
+              </span>
+            </label>
+            <div className="relative w-full">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40">
+                <FaLock className="w-4 h-4" />
+              </span>
+              <input
+                type={showPassword ? "text" : "password"}
+                name="confirmPassword"
+                placeholder="••••••••"
+                value={formData.confirmPassword}
+                onChange={handleInputChange}
+                className="w-full pl-11 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#df6742] transition-colors"
+                required
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          {/* Submit Registration Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 bg-[#df6742] hover:bg-[#c55332] text-white text-sm font-bold rounded-xl transition-all active:scale-[0.98] shadow-lg shadow-[#df6742]/10 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Creating Account..." : "Sign Up"}
+          </button>
+        </form>
+
+        {/* Divider Line */}
+        <div className="relative flex py-2 items-center">
+          <div className="flex-grow border-t border-white/10"></div>
+          <span className="shrink mx-4 text-white/40 text-xs font-semibold uppercase tracking-wider">
+            or
+          </span>
+          <div className="flex-grow border-t border-white/10"></div>
+        </div>
+
+        {/* OAuth Integration Button */}
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() =>
+            toast.success("Google registration triggered", { duration: 3000 })
+          }
+          className="w-full flex items-center justify-center gap-3 py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 text-sm font-bold rounded-xl transition-all active:scale-[0.98] disabled:opacity-50"
+        >
+          <FaGoogle className="w-4 h-4 text-white" />
+          <span>Sign Up with Google</span>
+        </button>
+
+        {/* Account Navigation Link */}
+        <p className="text-center text-xs text-white/60 pt-2">
+          Already have an account?{" "}
+          <NextLink
+            href="/login"
+            className="text-[#df6742] hover:underline font-bold"
+          >
+            Log In Here
+          </NextLink>
+        </p>
+      </div>
+    </div>
+  );
 };
 
 export default RegisterPage;

@@ -2,28 +2,40 @@
 import React, { useState } from "react";
 import NextLink from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useSession, signOut } from "@/lib/auth-client";
+import toast from "react-hot-toast";
 
 const Navbar = () => {
-  // Navigation & Menu States
   const pathname = usePathname();
+  const router = useRouter();
+  
+  const { data: session, isPending } = useSession();
+  const user = session?.user;
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileDashboardOpen, setIsMobileDashboardOpen] = useState(false);
 
-  // Temporary Static User State (Change image to "" or null to test the name fallback)
-  const [user, setUser] = useState({
-    name: "Asmual Hoque",
-    email: "asmual@example.com",
-    role: "artist", 
-    image: "",
-  });
-
-  // Handle User Logout Action
-  const handleLogout = () => {
-    setUser(null);
+  // Handles user logout operation with success notification
+  const handleLogout = async () => {
+    try {
+      await signOut({
+        fetchOptions: {
+          onSuccess: () => {
+            setIsMobileMenuOpen(false);
+            toast.success("Logged out successfully!");
+            router.push("/login");
+          },
+          onError: (ctx) => {
+            toast.error(ctx?.error?.message || "Something went wrong during logout.");
+          }
+        },
+      });
+    } catch (error) {
+      toast.error("Failed to log out. Please try again.");
+    }
   };
 
-  // Helper Function to Determine Active Route
   const isActive = (path) => pathname === path;
 
   return (
@@ -34,9 +46,7 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           
-          {/* ==========================================================
-              BRAND LOGO SECTION
-              ========================================================== */}
+          {/* Brand Logo Section */}
           <NextLink href="/" className="flex items-center gap-3 group">
             <Image 
               src="/Images/ArtHubLogo.png" 
@@ -50,11 +60,8 @@ const Navbar = () => {
             </span>
           </NextLink>
 
-          {/* ==========================================================
-              DESKTOP NAVIGATION LINKS
-              ========================================================== */}
+          {/* Desktop Navigation Links */}
           <div className="hidden md:flex items-center gap-8">
-            {/* Home Navigation Link */}
             <NextLink
               href="/"
               className={`text-sm font-semibold tracking-wide transition-colors duration-200 relative py-1 ${
@@ -67,7 +74,6 @@ const Navbar = () => {
               )}
             </NextLink>
 
-            {/* Browse Artworks Navigation Link */}
             <NextLink
               href="/browse"
               className={`text-sm font-semibold tracking-wide transition-colors duration-200 relative py-1 ${
@@ -80,7 +86,7 @@ const Navbar = () => {
               )}
             </NextLink>
 
-            {/* Role-Based Dashboard Hover Menu */}
+            {/* Role-Based Dashboard Dropdown Menu */}
             {user && (
               <div className="dropdown dropdown-hover">
                 <div 
@@ -94,15 +100,16 @@ const Navbar = () => {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                   </svg>
+                  {pathname.startsWith("/dashboard") && (
+                    <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#df6742] rounded-full"></span>
+                  )}
                 </div>
 
-                {/* Dropdown Options matching Navbar Background */}
                 <ul 
                   tabIndex={0} 
                   className="dropdown-content menu p-3 shadow-2xl bg-[#2f3f48] rounded-2xl w-56 border border-white/10 text-white z-10 mt-0"
                 >
-                  {/* Regular User Dashboard Options */}
-                  {user.role === "user" && (
+                  {user.role === "buyer" && (
                     <li>
                       <NextLink 
                         href="/dashboard/user" 
@@ -115,7 +122,6 @@ const Navbar = () => {
                     </li>
                   )}
 
-                  {/* Artist Dashboard Options */}
                   {user.role === "artist" && (
                     <>
                       <li>
@@ -141,7 +147,6 @@ const Navbar = () => {
                     </>
                   )}
 
-                  {/* Admin Dashboard Options */}
                   {user.role === "admin" && (
                     <>
                       <li>
@@ -171,13 +176,12 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* ==========================================================
-              DESKTOP AUTHENTICATION ACTIONS & FIXED CENTERED AVATAR
-              ========================================================== */}
+          {/* Desktop Authentication & User Profile Section */}
           <div className="hidden md:flex items-center gap-4">
-            {user ? (
+            {isPending ? (
+              <div className="w-9 h-9 rounded-full border-2 border-white/10 animate-pulse bg-white/10"></div>
+            ) : user ? (
               <div className="flex items-center gap-3">
-                {/* Dynamic Avatar Render */}
                 {user.image ? (
                   <div className="w-9 h-9 rounded-full border-2 border-[#df6742] overflow-hidden select-none relative">
                     <Image 
@@ -191,7 +195,6 @@ const Navbar = () => {
                   </div>
                 ) : (
                   <div className="avatar placeholder select-none">
-                    {/* FIXED: Added 'flex items-center justify-center' and adjusted font size to text-base */}
                     <div className="bg-[#df6742] text-white rounded-full w-9 h-9 border-2 border-[#df6742] flex items-center justify-center">
                       <span className="text-base font-bold uppercase tracking-wider leading-none">
                         {user.name ? user.name.charAt(0) : "U"}
@@ -224,9 +227,7 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* ==========================================================
-              MOBILE MENU TOGGLE BUTTON
-              ========================================================== */}
+          {/* Mobile Menu Toggle Button */}
           <div className="flex md:hidden items-center">
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -246,14 +247,11 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* ==========================================================
-          MOBILE NAVIGATION DRAWER
-          ========================================================== */}
+      {/* Mobile Navigation Drawer */}
       {isMobileMenuOpen && (
         <div className="md:hidden bg-[#243239] border-t border-white/10 shadow-inner">
           <div className="px-4 pt-2 pb-3 space-y-1">
             
-            {/* Mobile Home Link */}
             <NextLink
               href="/"
               onClick={() => setIsMobileMenuOpen(false)}
@@ -264,7 +262,6 @@ const Navbar = () => {
               Home
             </NextLink>
 
-            {/* Mobile Browse Link */}
             <NextLink
               href="/browse"
               onClick={() => setIsMobileMenuOpen(false)}
@@ -296,10 +293,9 @@ const Navbar = () => {
                   </svg>
                 </button>
                 
-                {/* Mobile Sub-menus based on User Role */}
                 {isMobileDashboardOpen && (
                   <div className="pl-4 mt-1 space-y-1 bg-[#1e2a30] rounded-xl p-2">
-                    {user.role === "user" && (
+                    {user.role === "buyer" && (
                       <NextLink
                         href="/dashboard/user"
                         onClick={() => setIsMobileMenuOpen(false)}
@@ -359,14 +355,13 @@ const Navbar = () => {
               </div>
             )}
 
-            {/* ==========================================================
-                MOBILE SYSTEM USER PROFILE & FIXED CENTERED MOBILE AVATAR
-                ========================================================== */}
+            {/* Mobile User Profile Section */}
             <div className="pt-3 border-t border-white/10">
-              {user ? (
+              {isPending ? (
+                <div className="h-12 w-full bg-white/5 animate-pulse rounded-xl"></div>
+              ) : user ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-3 px-3 py-1">
-                    {/* Mobile Dynamic Avatar Render */}
                     {user.image ? (
                       <div className="h-8 w-8 rounded-full border-2 border-[#df6742] overflow-hidden relative">
                         <Image 
@@ -380,7 +375,6 @@ const Navbar = () => {
                       </div>
                     ) : (
                       <div className="avatar placeholder select-none">
-                        {/* FIXED: Added 'flex items-center justify-center' and adjusted font size to text-sm */}
                         <div className="bg-[#df6742] text-white rounded-full w-8 h-8 border-2 border-[#df6742] flex items-center justify-center">
                           <span className="text-sm font-bold uppercase leading-none">
                             {user.name ? user.name.charAt(0) : "U"}
@@ -395,10 +389,7 @@ const Navbar = () => {
                   </div>
                   
                   <button
-                    onClick={() => {
-                      handleLogout();
-                      setIsMobileMenuOpen(false);
-                    }}
+                    onClick={handleLogout}
                     className="w-full text-center bg-[#df6742] hover:bg-[#c55332] text-white px-4 py-2 rounded-xl text-sm font-bold mt-1"
                   >
                     Logout
