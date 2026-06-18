@@ -281,11 +281,11 @@ const RegisterPage = () => {
 
         {/* Divider Line */}
         <div className="relative flex py-2 items-center">
-          <div className="flex-grow border-t border-white/10"></div>
+          <div className="grow border-t border-white/10"></div>
           <span className="shrink mx-4 text-white/40 text-xs font-semibold uppercase tracking-wider">
             or
           </span>
-          <div className="flex-grow border-t border-white/10"></div>
+          <div className="grow border-t border-white/10"></div>
         </div>
 
         {/* OAuth Integration Button */}
