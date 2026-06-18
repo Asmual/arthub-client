@@ -8,5 +8,5 @@ git push -u origin main
 
 
 git add .
-git commit -m "feat: complete hero section & add slider animation"
+git commit -m "feat:Footer section complete"
 git push

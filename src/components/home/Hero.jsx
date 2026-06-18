@@ -31,7 +31,7 @@ const Hero = () => {
                 <div
                     key={index}
               
-                    className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-4000 ease-in-out transform ${
+                    className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-3000 ease-in-out transform ${
                         index === currentImageIndex 
                             ? "opacity-100 scale-100 z-0" 
                             : "opacity-0 scale-105 z-[-1]"
