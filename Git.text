@@ -8,5 +8,5 @@ git push -u origin main
 
 
 git add .
-git commit -m "feat: add responsive navigation bar with mobile menu"
+git commit -m "feat: complete hero section & add slider animation"
 git push
