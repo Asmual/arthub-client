@@ -23,13 +23,30 @@ import {
   LogOut,
   X,
   Menu,
+  Eye,
 } from "lucide-react";
 
-// ── HELPER FUNCTIONS & SUB-COMPONENTS (Moved outside to prevent React compilation errors) ──
+// ── HELPER FUNCTIONS & SUB-COMPONENTS ──
 
+// Helper to determine the primary dashboard entry point based on user role
+const getMainDashboardPath = (role) => {
+  if (role === "admin") return "/dashboard/admin";
+  if (role === "artist") return "/dashboard/artist";
+  return "/dashboard/user";
+};
+
+// Generates dynamic side-menu links for the dashboard dropdown based on authorized user role
 const getDashboardLinks = (role) => {
+  const mainPath = getMainDashboardPath(role);
+  
+  // Common core action visible to all authenticated roles
+  const commonLinks = [
+    { href: mainPath, label: "View Dashboard", icon: Eye }
+  ];
+
   if (role === "buyer" || role === "user") {
     return [
+      ...commonLinks,
       { href: "/dashboard/user", label: "Purchase History", icon: ShoppingBag },
       { href: "/dashboard/user/bought-artworks", label: "Bought Artworks", icon: ImageIcon },
       { href: "/dashboard/user/profile", label: "Profile Management", icon: User },
@@ -37,6 +54,7 @@ const getDashboardLinks = (role) => {
   }
   if (role === "artist") {
     return [
+      ...commonLinks,
       { href: "/dashboard/artist", label: "Manage Artworks", icon: Palette },
       { href: "/dashboard/artist/add-art", label: "Add Artwork", icon: PlusSquare },
       { href: "/dashboard/artist/sales", label: "Sales History", icon: TrendingUp },
@@ -45,6 +63,7 @@ const getDashboardLinks = (role) => {
   }
   if (role === "admin") {
     return [
+      ...commonLinks,
       { href: "/dashboard/admin", label: "Manage Users", icon: Users },
       { href: "/dashboard/admin/artworks", label: "Manage All Artworks", icon: Shield },
       { href: "/dashboard/admin/transactions", label: "View All Transactions", icon: CreditCard },
@@ -54,12 +73,14 @@ const getDashboardLinks = (role) => {
   return [];
 };
 
+// Returns role-based background colors for authorization badges
 const getRoleBadgeColor = (role) => {
-  if (role === "admin") return "bg-purple-500";
-  if (role === "artist") return "bg-amber-500";
-  return "bg-[#df6742]";
+  if (role === "admin") return "bg-purple-600 border border-purple-400/30";
+  if (role === "artist") return "bg-amber-600 border border-amber-400/30";
+  return "bg-[#df6742] border border-orange-400/30";
 };
 
+// Custom interactive navigation links with animated bottom indicator borders
 const NavLink = ({ href, children, active }) => (
   <NextLink
     href={href}
@@ -74,6 +95,7 @@ const NavLink = ({ href, children, active }) => (
   </NextLink>
 );
 
+// Fallback avatar component displaying the first letter of the user's name
 const UserInitials = ({ name, size = "w-10 h-10", textSize = "text-lg" }) => (
   <div
     className={`bg-[#df6742] text-white rounded-full ${size} border-2 border-[#df6742] flex items-center justify-center shrink-0`}
@@ -91,6 +113,7 @@ const Navbar = () => {
   const { data: session, isPending } = useSession();
   const user = session?.user;
 
+  // Layout UI state management
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileDashboardOpen, setIsMobileDashboardOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
@@ -98,10 +121,11 @@ const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
+  // References to detect click events outside dropdown interfaces
   const dashboardRef = useRef(null);
   const avatarRef = useRef(null);
 
-  // Close dropdowns on outside click
+  // Effect: Event listener to close dropdown listings whenever user clicks anywhere outside them
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dashboardRef.current && !dashboardRef.current.contains(e.target)) {
@@ -115,6 +139,7 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Handler: Authenticated session logouts
   const handleLogout = async () => {
     try {
       await signOut({
@@ -135,6 +160,7 @@ const Navbar = () => {
     }
   };
 
+  // Handler: Form submissions targeting global catalogue search queries
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -155,7 +181,7 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center h-16 gap-4">
 
-          {/* Logo */}
+          {/* BRAND LOGO SECTION */}
           <NextLink href="/" className="flex items-center gap-2.5 group shrink-0">
             <Image
               src="/Images/ArtHubLogo.png"
@@ -169,7 +195,7 @@ const Navbar = () => {
             </span>
           </NextLink>
 
-          {/* Search Bar (Pure Validated Tailwind Opacity Arbitrary Syntax Fix) */}
+          {/* DESKTOP SEARCH BAR SUB-INTERFACE */}
           <form
             onSubmit={handleSearch}
             className="hidden md:flex flex-1 mx-6 max-w-md"
@@ -209,12 +235,12 @@ const Navbar = () => {
             </div>
           </form>
 
-          {/* Desktop Nav Links */}
+          {/* DESKTOP NAVIGATION SYSTEM */}
           <div className="hidden md:flex items-center gap-6 shrink-0">
             <NavLink href="/" active={isActive("/")}>Home</NavLink>
             <NavLink href="/browse" active={isActive("/browse")}>Browse Artworks</NavLink>
 
-            {/* Dashboard Dropdown */}
+            {/* Desktop Dashboard Multi-Level Dropdown */}
             {user && (
               <div className="relative" ref={dashboardRef}>
                 <button
@@ -238,13 +264,15 @@ const Navbar = () => {
 
                 {isDashboardOpen && (
                   <ul className="absolute top-full left-0 mt-2.5 w-56 bg-[#243239] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 py-1.5">
-                    {dashboardLinks.map(({ href, label, icon: Icon }) => (
-                      <li key={href}>
+                    {dashboardLinks.map(({ href, label, icon: Icon }, index) => (
+                      <li key={`${href}-${label}`}>
                         <NextLink
                           href={href}
                           onClick={() => setIsDashboardOpen(false)}
                           className={`flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition-colors ${
-                            isActive(href)
+                            index === 0 
+                              ? "text-white/80 hover:text-[#df6742]  font-semibold border-b border-white/5 pb-3 mb-1.5 hover:bg-white/4" 
+                              : isActive(href)
                               ? "text-[#df6742] bg-white/8"
                               : "text-white/80 hover:text-[#df6742] hover:bg-white/6"
                           }`}
@@ -260,7 +288,7 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Avatar / Auth */}
+          {/* USER AUTHENTICATION & PROFILE INTERFACES */}
           <div className="hidden md:flex items-center ml-auto flex-shrink-0">
             {isPending ? (
               <div className="w-9 h-9 rounded-full border-2 border-white/10 animate-pulse bg-white/10" />
@@ -283,48 +311,62 @@ const Navbar = () => {
                       />
                     </div>
                   ) : (
-                    <UserInitials name={user.name} />
+                    <div className="hover:opacity-95 transition-opacity">
+                      <UserInitials name={user.name} />
+                    </div>
                   )}
                 </button>
 
-                {/* Avatar Dropdown */}
+                {/* Professional User Profile Summary Card */}
                 {isAvatarOpen && (
-                  <div className="absolute right-0 top-full mt-2.5 w-64 bg-[#243239] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden">
-                    <div className="px-4 py-3.5 border-b border-white/10">
-                      <div className="flex items-center gap-3">
+                  <div className="absolute right-0 top-full mt-2.5 w-72 bg-[#243239] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+                    
+                    <div className="p-4 bg-[#1e2a30] border-b border-white/10">
+                      <div className="flex items-center gap-3.5 mb-3">
                         {user.image ? (
-                          <div className="w-11 h-11 rounded-full border-2 border-[#df6742] overflow-hidden relative flex-shrink-0">
+                          <div className="w-12 h-12 rounded-full border-2 border-[#df6742] overflow-hidden relative flex-shrink-0 shadow-inner">
                             <Image
                               alt="User Avatar"
                               src={user.image}
                               fill
-                              sizes="44px"
+                              sizes="48px"
                               unoptimized
                               className="object-cover"
                             />
                           </div>
                         ) : (
-                          <UserInitials name={user.name} size="w-11 h-11" textSize="text-base" />
+                          <UserInitials name={user.name} size="w-12 h-12" textSize="text-lg" />
                         )}
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold text-white truncate">{user.name}</p>
-                          <p className="text-xs text-white/50 truncate mt-0.5">{user.email}</p>
                           <span
-                            className={`inline-block mt-1.5 text-[10px] font-bold uppercase tracking-wider text-white px-2 py-0.5 rounded-full ${getRoleBadgeColor(user.role)}`}
+                            className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider text-white mb-1 ${getRoleBadgeColor(user.role)}`}
                           >
                             {user.role}
                           </span>
+                          <div className="text-[11px] uppercase tracking-wider text-white/40 font-bold">Account Holder</div>
+                        </div>
+                      </div>
+
+                      {/* Explicitly Labeled Personal Parameters */}
+                      <div className="space-y-1.5 bg-black/15 p-2.5 rounded-xl border border-white/5">
+                        <div className="flex items-baseline gap-1.5 min-w-0">
+                          <span className="text-xs text-white/40 font-semibold shrink-0">Name:</span>
+                          <p className="text-sm font-bold text-white truncate">{user.name || "N/A"}</p>
+                        </div>
+                        <div className="flex items-baseline gap-1.5 min-w-0">
+                          <span className="text-xs text-white/40 font-semibold shrink-0">Email:</span>
+                          <p className="text-xs font-medium text-white/80 select-all truncate">{user.email || "N/A"}</p>
                         </div>
                       </div>
                     </div>
 
-                    <div className="px-3 py-2.5">
+                    <div className="p-2 bg-[#243239]">
                       <button
                         onClick={handleLogout}
-                        className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-semibold text-red-400 hover:bg-red-500/10 transition-colors"
+                        className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-semibold text-red-400 hover:bg-red-500/10 transition-colors group"
                       >
-                        <LogOut size={15} />
-                        Logout
+                        <LogOut size={15} className="group-hover:translate-x-0.5 transition-transform" />
+                        Logout from Account
                       </button>
                     </div>
                   </div>
@@ -348,7 +390,7 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Mobile Toggle */}
+          {/* MOBILE TOGGLE CONTROL BUTTON */}
           <button
             onClick={() => setIsMobileMenuOpen((p) => !p)}
             className="flex md:hidden items-center ml-auto text-white hover:text-[#df6742] p-2 rounded-lg"
@@ -359,12 +401,12 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* Mobile Drawer */}
+      {/* MOBILE EXPANDED MENU DRAWER */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-[#243239] border-t border-white/10">
+        <div className="md:hidden bg-[#243239] border-t border-white/10 animate-in slide-in-from-top duration-200">
           <div className="px-4 pt-3 pb-4 space-y-1">
 
-            {/* Mobile Search */}
+            {/* Mobile View Input Search */}
             <form onSubmit={handleSearch} className="mb-3">
               <div className="flex items-center border border-white/15 bg-white/[0.08] rounded-full px-3.5 py-2 gap-2">
                 <Search size={15} className="text-white/40 flex-shrink-0" />
@@ -378,7 +420,6 @@ const Navbar = () => {
               </div>
             </form>
 
-            {/* Home & Browse */}
             <NextLink
               href="/"
               onClick={() => setIsMobileMenuOpen(false)}
@@ -398,7 +439,7 @@ const Navbar = () => {
               Browse Artworks
             </NextLink>
 
-            {/* Mobile Dashboard Accordion */}
+            {/* Mobile View Dashboard Accordion Layout */}
             {user && (
               <div>
                 <button
@@ -420,14 +461,16 @@ const Navbar = () => {
                 </button>
 
                 {isMobileDashboardOpen && (
-                  <div className="mt-1 ml-2 bg-[#1e2a30] rounded-xl overflow-hidden">
-                    {dashboardLinks.map(({ href, label, icon: Icon }) => (
+                  <div className="mt-1 ml-2 bg-[#1e2a30] rounded-xl overflow-hidden border border-white/5">
+                    {dashboardLinks.map(({ href, label, icon: Icon }, index) => (
                       <NextLink
-                        key={href}
+                        key={`${href}-${label}-mobile`}
                         href={href}
                         onClick={() => setIsMobileMenuOpen(false)}
                         className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors ${
-                          isActive(href)
+                          index === 0 
+                            ? "text-emerald-400 font-bold border-b border-white/5 bg-white/5" 
+                            : isActive(href)
                             ? "text-[#df6742] font-semibold"
                             : "text-white/70 hover:bg-white/[0.06] hover:text-white"
                         }`}
@@ -441,12 +484,12 @@ const Navbar = () => {
               </div>
             )}
 
-            {/* Mobile User Card */}
+            {/* Mobile Account Details Grid Summary */}
             <div className="pt-2 border-t border-white/10 mt-2">
               {isPending ? (
                 <div className="h-16 bg-white/5 animate-pulse rounded-xl" />
               ) : user ? (
-                <div className="bg-[#1e2a30] rounded-2xl p-3 border border-white/5 space-y-3">
+                <div className="bg-[#1e2a30] rounded-2xl p-3 border border-white/5 space-y-3.5">
                   <div className="flex items-center gap-3">
                     {user.image ? (
                       <div className="w-10 h-10 rounded-full border-2 border-[#df6742] overflow-hidden relative flex-shrink-0">
@@ -463,21 +506,24 @@ const Navbar = () => {
                       <UserInitials name={user.name} size="w-10 h-10" textSize="text-base" />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-white truncate">{user.name}</p>
-                      <p className="text-xs text-white/50 truncate">{user.email}</p>
                       <span
-                        className={`inline-block mt-1 text-[10px] font-bold uppercase tracking-wider text-white px-2 py-0.5 rounded-full ${getRoleBadgeColor(user.role)}`}
+                        className={`inline-block text-[9px] font-bold uppercase tracking-wider text-white px-2 py-0.5 rounded-full mb-1 ${getRoleBadgeColor(user.role)}`}
                       >
                         {user.role}
                       </span>
+                      
+                      <div className="text-[12px] text-white/90 font-medium space-y-0.5 bg-black/10 p-2 rounded-lg mt-1">
+                        <div className="truncate"><span className="text-white/40 font-semibold">Name:</span> {user.name}</div>
+                        <div className="truncate"><span className="text-white/40 font-semibold">Email:</span> {user.email}</div>
+                      </div>
                     </div>
                   </div>
                   <button
                     onClick={handleLogout}
-                    className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold text-white bg-[#df6742] hover:bg-[#c55332] transition-colors"
+                    className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold text-white bg-[#df6742] hover:bg-[#c55332] transition-colors shadow-sm"
                   >
                     <LogOut size={14} />
-                    Logout
+                    Logout from Account
                   </button>
                 </div>
               ) : (

@@ -8,5 +8,5 @@ git push -u origin main
 
 
 git add .
-git commit -m "chore: Role Base Dashboard manu items added and 404 page added"
+git commit -m "(navbar): add search functionality and optimize profile dropdown design"
 git push
