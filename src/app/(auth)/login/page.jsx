@@ -25,7 +25,22 @@ const LoginPage = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handle form submission and authentication
+  // Handle Google Social Authentication
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      await signIn.social({
+        provider: "google",
+        callbackURL: "/", 
+      });
+    } catch (err) {
+      setLoading(false);
+      toast.error("Google login failed. Please try again.");
+      console.error("Google Auth Error:", err);
+    }
+  };
+
+  // Handle standard credentials form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -41,12 +56,10 @@ const LoginPage = () => {
           onRequest: () => setLoading(true),
           onSuccess: () => {
             setLoading(false);
-            // Display success notification for 3 seconds
             toast.success("Sign In Successful! Welcome back.", {
               duration: 3000,
             });
 
-            // Delay the redirect to allow the toast to be visible
             setTimeout(() => {
               router.push("/");
               router.refresh();
@@ -54,7 +67,6 @@ const LoginPage = () => {
           },
           onError: (ctx) => {
             setLoading(false);
-            // Handle API authentication errors with 3 seconds visibility
             toast.error(ctx.error.message || "Invalid email or password.", {
               duration: 3000,
             });
@@ -184,12 +196,10 @@ const LoginPage = () => {
         <button
           type="button"
           disabled={loading}
-          onClick={() =>
-            toast.success("Google integration triggered", { duration: 3000 })
-          }
+          onClick={handleGoogleLogin}
           className="w-full flex items-center justify-center gap-3 py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 text-sm font-bold rounded-xl transition-all active:scale-[0.98] disabled:opacity-50"
         >
-          <FaGoogle className="w-4 h-4 text-white" />
+          <FaGoogle className="w-4 h-4 text-white shrink-0" />
           <span>Continue with Google</span>
         </button>
 

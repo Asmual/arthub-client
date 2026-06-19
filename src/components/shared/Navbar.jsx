@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import NextLink from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { useSession, signOut } from "@/lib/auth-client";
+import { signIn, useSession, signOut } from "@/lib/auth-client";
 import toast from "react-hot-toast";
 import {
   ChevronDown,
@@ -28,59 +28,83 @@ import {
 
 // ── HELPER FUNCTIONS & SUB-COMPONENTS ──
 
-// Helper to determine the primary dashboard entry point based on user role
 const getMainDashboardPath = (role) => {
   if (role === "admin") return "/dashboard/admin";
   if (role === "artist") return "/dashboard/artist";
   return "/dashboard/user";
 };
 
-// Generates dynamic side-menu links for the dashboard dropdown based on authorized user role
 const getDashboardLinks = (role) => {
   const mainPath = getMainDashboardPath(role);
-  
-  // Common core action visible to all authenticated roles
-  const commonLinks = [
-    { href: mainPath, label: "View Dashboard", icon: Eye }
-  ];
+  const commonLinks = [{ href: mainPath, label: "View Dashboard", icon: Eye }];
 
   if (role === "buyer" || role === "user") {
     return [
       ...commonLinks,
       { href: "/dashboard/user", label: "Purchase History", icon: ShoppingBag },
-      { href: "/dashboard/user/bought-artworks", label: "Bought Artworks", icon: ImageIcon },
-      { href: "/dashboard/user/profile", label: "Profile Management", icon: User },
+      {
+        href: "/dashboard/user/bought-artworks",
+        label: "Bought Artworks",
+        icon: ImageIcon,
+      },
+      {
+        href: "/dashboard/user/profile",
+        label: "Profile Management",
+        icon: User,
+      },
     ];
   }
   if (role === "artist") {
     return [
       ...commonLinks,
       { href: "/dashboard/artist", label: "Manage Artworks", icon: Palette },
-      { href: "/dashboard/artist/add-art", label: "Add Artwork", icon: PlusSquare },
-      { href: "/dashboard/artist/sales", label: "Sales History", icon: TrendingUp },
-      { href: "/dashboard/artist/profile", label: "Profile Management", icon: User },
+      {
+        href: "/dashboard/artist/add-art",
+        label: "Add Artwork",
+        icon: PlusSquare,
+      },
+      {
+        href: "/dashboard/artist/sales",
+        label: "Sales History",
+        icon: TrendingUp,
+      },
+      {
+        href: "/dashboard/artist/profile",
+        label: "Profile Management",
+        icon: User,
+      },
     ];
   }
   if (role === "admin") {
     return [
       ...commonLinks,
       { href: "/dashboard/admin", label: "Manage Users", icon: Users },
-      { href: "/dashboard/admin/artworks", label: "Manage All Artworks", icon: Shield },
-      { href: "/dashboard/admin/transactions", label: "View All Transactions", icon: CreditCard },
-      { href: "/dashboard/admin/charts", label: "Charts & Analytics", icon: BarChart2 },
+      {
+        href: "/dashboard/admin/artworks",
+        label: "Manage All Artworks",
+        icon: Shield,
+      },
+      {
+        href: "/dashboard/admin/transactions",
+        label: "View All Transactions",
+        icon: CreditCard,
+      },
+      {
+        href: "/dashboard/admin/charts",
+        label: "Charts & Analytics",
+        icon: BarChart2,
+      },
     ];
   }
   return [];
 };
 
-// Returns role-based background colors for authorization badges
 const getRoleBadgeColor = (role) => {
   if (role === "admin") return "bg-purple-600 border border-purple-400/30";
   if (role === "artist") return "bg-amber-600 border border-amber-400/30";
   return "bg-[#df6742] border border-orange-400/30";
 };
 
-// Custom interactive navigation links with animated bottom indicator borders
 const NavLink = ({ href, children, active }) => (
   <NextLink
     href={href}
@@ -95,7 +119,6 @@ const NavLink = ({ href, children, active }) => (
   </NextLink>
 );
 
-// Fallback avatar component displaying the first letter of the user's name
 const UserInitials = ({ name, size = "w-10 h-10", textSize = "text-lg" }) => (
   <div
     className={`bg-[#df6742] text-white rounded-full ${size} border-2 border-[#df6742] flex items-center justify-center shrink-0`}
@@ -113,7 +136,6 @@ const Navbar = () => {
   const { data: session, isPending } = useSession();
   const user = session?.user;
 
-  // Layout UI state management
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileDashboardOpen, setIsMobileDashboardOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
@@ -121,11 +143,9 @@ const Navbar = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-  // References to detect click events outside dropdown interfaces
   const dashboardRef = useRef(null);
   const avatarRef = useRef(null);
 
-  // Effect: Event listener to close dropdown listings whenever user clicks anywhere outside them
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dashboardRef.current && !dashboardRef.current.contains(e.target)) {
@@ -139,7 +159,6 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Handler: Authenticated session logouts
   const handleLogout = async () => {
     try {
       await signOut({
@@ -151,7 +170,9 @@ const Navbar = () => {
             router.push("/login");
           },
           onError: (ctx) => {
-            toast.error(ctx?.error?.message || "Something went wrong during logout.");
+            toast.error(
+              ctx?.error?.message || "Something went wrong during logout.",
+            );
           },
         },
       });
@@ -160,7 +181,6 @@ const Navbar = () => {
     }
   };
 
-  // Handler: Form submissions targeting global catalogue search queries
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -180,9 +200,11 @@ const Navbar = () => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center h-16 gap-4">
-
           {/* BRAND LOGO SECTION */}
-          <NextLink href="/" className="flex items-center gap-2.5 group shrink-0">
+          <NextLink
+            href="/"
+            className="flex items-center gap-2.5 group shrink-0"
+          >
             <Image
               src="/Images/ArtHubLogo.png"
               alt="ArtHub Logo"
@@ -237,8 +259,12 @@ const Navbar = () => {
 
           {/* DESKTOP NAVIGATION SYSTEM */}
           <div className="hidden md:flex items-center gap-6 shrink-0">
-            <NavLink href="/" active={isActive("/")}>Home</NavLink>
-            <NavLink href="/browse" active={isActive("/browse")}>Browse Artworks</NavLink>
+            <NavLink href="/" active={isActive("/")}>
+              Home
+            </NavLink>
+            <NavLink href="/browse" active={isActive("/browse")}>
+              Browse Artworks
+            </NavLink>
 
             {/* Desktop Dashboard Multi-Level Dropdown */}
             {user && (
@@ -264,24 +290,26 @@ const Navbar = () => {
 
                 {isDashboardOpen && (
                   <ul className="absolute top-full left-0 mt-2.5 w-56 bg-[#243239] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 py-1.5">
-                    {dashboardLinks.map(({ href, label, icon: Icon }, index) => (
-                      <li key={`${href}-${label}`}>
-                        <NextLink
-                          href={href}
-                          onClick={() => setIsDashboardOpen(false)}
-                          className={`flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition-colors ${
-                            index === 0 
-                              ? "text-white/80 hover:text-[#df6742]  font-semibold border-b border-white/5 pb-3 mb-1.5 hover:bg-white/4" 
-                              : isActive(href)
-                              ? "text-[#df6742] bg-white/8"
-                              : "text-white/80 hover:text-[#df6742] hover:bg-white/6"
-                          }`}
-                        >
-                          <Icon size={15} className="shrink-0 opacity-70" />
-                          {label}
-                        </NextLink>
-                      </li>
-                    ))}
+                    {dashboardLinks.map(
+                      ({ href, label, icon: Icon }, index) => (
+                        <li key={`${href}-${label}`}>
+                          <NextLink
+                            href={href}
+                            onClick={() => setIsDashboardOpen(false)}
+                            className={`flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition-colors ${
+                              index === 0
+                                ? "text-white/80 hover:text-[#df6742]  font-semibold border-b border-white/5 pb-3 mb-1.5 hover:bg-white/4"
+                                : isActive(href)
+                                  ? "text-[#df6742] bg-white/8"
+                                  : "text-white/80 hover:text-[#df6742] hover:bg-white/6"
+                            }`}
+                          >
+                            <Icon size={15} className="shrink-0 opacity-70" />
+                            {label}
+                          </NextLink>
+                        </li>
+                      ),
+                    )}
                   </ul>
                 )}
               </div>
@@ -289,7 +317,7 @@ const Navbar = () => {
           </div>
 
           {/* USER AUTHENTICATION & PROFILE INTERFACES */}
-          <div className="hidden md:flex items-center ml-auto flex-shrink-0">
+          <div className="hidden md:flex items-center ml-auto shrink-0">
             {isPending ? (
               <div className="w-9 h-9 rounded-full border-2 border-white/10 animate-pulse bg-white/10" />
             ) : user ? (
@@ -299,15 +327,18 @@ const Navbar = () => {
                   className="cursor-pointer hover:scale-105 transition-transform focus:outline-none"
                   aria-label="Toggle user menu"
                 >
-                  {user.image ? (
-                    <div className="w-10 h-10 rounded-full border-2 border-[#df6742] overflow-hidden relative">
+                  {user.image && user.image !== "null" ? (
+                    <div className="w-10 h-10 rounded-full border-2 border-[#df6742] overflow-hidden relative block">
                       <Image
                         alt="User Avatar"
                         src={user.image}
                         fill
                         sizes="40px"
                         unoptimized
-                        className="object-cover"
+                        className="object-cover w-full h-full"
+                        onError={(e) => {
+                          e.currentTarget.src = "/Images/default-avatar.png";
+                        }}
                       />
                     </div>
                   ) : (
@@ -320,22 +351,25 @@ const Navbar = () => {
                 {/* Professional User Profile Summary Card */}
                 {isAvatarOpen && (
                   <div className="absolute right-0 top-full mt-2.5 w-72 bg-[#243239] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
-                    
                     <div className="p-4 bg-[#1e2a30] border-b border-white/10">
                       <div className="flex items-center gap-3.5 mb-3">
-                        {user.image ? (
-                          <div className="w-12 h-12 rounded-full border-2 border-[#df6742] overflow-hidden relative flex-shrink-0 shadow-inner">
+                        {user.image && user.image !== "null" ? (
+                          <div className="w-12 h-12 rounded-full border-2 border-[#df6742] overflow-hidden relative block shrink-0 shadow-inner">
                             <Image
                               alt="User Avatar"
                               src={user.image}
                               fill
                               sizes="48px"
                               unoptimized
-                              className="object-cover"
+                              className="object-cover w-full h-full"
                             />
                           </div>
                         ) : (
-                          <UserInitials name={user.name} size="w-12 h-12" textSize="text-lg" />
+                          <UserInitials
+                            name={user.name}
+                            size="w-12 h-12"
+                            textSize="text-lg"
+                          />
                         )}
                         <div className="min-w-0 flex-1">
                           <span
@@ -343,19 +377,28 @@ const Navbar = () => {
                           >
                             {user.role}
                           </span>
-                          <div className="text-[11px] uppercase tracking-wider text-white/40 font-bold">Account Holder</div>
+                          <div className="text-[11px] uppercase tracking-wider text-white/40 font-bold">
+                            Account Holder
+                          </div>
                         </div>
                       </div>
 
-                      {/* Explicitly Labeled Personal Parameters */}
                       <div className="space-y-1.5 bg-black/15 p-2.5 rounded-xl border border-white/5">
                         <div className="flex items-baseline gap-1.5 min-w-0">
-                          <span className="text-xs text-white/40 font-semibold shrink-0">Name:</span>
-                          <p className="text-sm font-bold text-white truncate">{user.name || "N/A"}</p>
+                          <span className="text-xs text-white/40 font-semibold shrink-0">
+                            Name:
+                          </span>
+                          <p className="text-sm font-bold text-white truncate">
+                            {user.name || "N/A"}
+                          </p>
                         </div>
                         <div className="flex items-baseline gap-1.5 min-w-0">
-                          <span className="text-xs text-white/40 font-semibold shrink-0">Email:</span>
-                          <p className="text-xs font-medium text-white/80 select-all truncate">{user.email || "N/A"}</p>
+                          <span className="text-xs text-white/40 font-semibold shrink-0">
+                            Email:
+                          </span>
+                          <p className="text-xs font-medium text-white/80 select-all truncate">
+                            {user.email || "N/A"}
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -365,8 +408,11 @@ const Navbar = () => {
                         onClick={handleLogout}
                         className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-sm font-semibold text-red-400 hover:bg-red-500/10 transition-colors group"
                       >
-                        <LogOut size={15} className="group-hover:translate-x-0.5 transition-transform" />
-                        Logout from Account
+                        <LogOut
+                          size={15}
+                          className="group-hover:translate-x-0.5 transition-transform"
+                        />
+                        Logout
                       </button>
                     </div>
                   </div>
@@ -405,11 +451,9 @@ const Navbar = () => {
       {isMobileMenuOpen && (
         <div className="md:hidden bg-[#243239] border-t border-white/10 animate-in slide-in-from-top duration-200">
           <div className="px-4 pt-3 pb-4 space-y-1">
-
-            {/* Mobile View Input Search */}
             <form onSubmit={handleSearch} className="mb-3">
-              <div className="flex items-center border border-white/15 bg-white/[0.08] rounded-full px-3.5 py-2 gap-2">
-                <Search size={15} className="text-white/40 flex-shrink-0" />
+              <div className="flex items-center border border-white/15 bg-white/8 rounded-full px-3.5 py-2 gap-2">
+                <Search size={15} className="text-white/40 shrink-0" />
                 <input
                   type="text"
                   value={searchQuery}
@@ -424,7 +468,9 @@ const Navbar = () => {
               href="/"
               onClick={() => setIsMobileMenuOpen(false)}
               className={`block px-3 py-2.5 rounded-xl text-sm font-semibold ${
-                isActive("/") ? "bg-[#df6742] text-white" : "text-white/80 hover:bg-white/[0.08]"
+                isActive("/")
+                  ? "bg-[#df6742] text-white"
+                  : "text-white/80 hover:bg-white/8"
               }`}
             >
               Home
@@ -433,13 +479,14 @@ const Navbar = () => {
               href="/browse"
               onClick={() => setIsMobileMenuOpen(false)}
               className={`block px-3 py-2.5 rounded-xl text-sm font-semibold ${
-                isActive("/browse") ? "bg-[#df6742] text-white" : "text-white/80 hover:bg-white/[0.08]"
+                isActive("/browse")
+                  ? "bg-[#df6742] text-white"
+                  : "text-white/80 hover:bg-white/8"
               }`}
             >
               Browse Artworks
             </NextLink>
 
-            {/* Mobile View Dashboard Accordion Layout */}
             {user && (
               <div>
                 <button
@@ -447,7 +494,7 @@ const Navbar = () => {
                   className={`w-full flex justify-between items-center px-3 py-2.5 rounded-xl text-sm font-semibold ${
                     pathname.startsWith("/dashboard")
                       ? "text-[#df6742]"
-                      : "text-white/80 hover:bg-white/[0.08]"
+                      : "text-white/80 hover:bg-white/8"
                   }`}
                 >
                   <span className="flex items-center gap-2">
@@ -462,48 +509,54 @@ const Navbar = () => {
 
                 {isMobileDashboardOpen && (
                   <div className="mt-1 ml-2 bg-[#1e2a30] rounded-xl overflow-hidden border border-white/5">
-                    {dashboardLinks.map(({ href, label, icon: Icon }, index) => (
-                      <NextLink
-                        key={`${href}-${label}-mobile`}
-                        href={href}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors ${
-                          index === 0 
-                            ? "text-emerald-400 font-bold border-b border-white/5 bg-white/5" 
-                            : isActive(href)
-                            ? "text-[#df6742] font-semibold"
-                            : "text-white/70 hover:bg-white/[0.06] hover:text-white"
-                        }`}
-                      >
-                        <Icon size={14} className="opacity-70 flex-shrink-0" />
-                        {label}
-                      </NextLink>
-                    ))}
+                    {dashboardLinks.map(
+                      ({ href, label, icon: Icon }, index) => (
+                        <NextLink
+                          key={`${href}-${label}-mobile`}
+                          href={href}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors ${
+                            index === 0
+                              ? "text-emerald-400 font-bold border-b border-white/5 bg-white/5"
+                              : isActive(href)
+                                ? "text-[#df6742] font-semibold"
+                                : "text-white/70 hover:bg-white/6 hover:text-white"
+                          }`}
+                        >
+                          <Icon size={14} className="opacity-70 shrink-0" />
+                          {label}
+                        </NextLink>
+                      ),
+                    )}
                   </div>
                 )}
               </div>
             )}
 
-            {/* Mobile Account Details Grid Summary */}
             <div className="pt-2 border-t border-white/10 mt-2">
               {isPending ? (
                 <div className="h-16 bg-white/5 animate-pulse rounded-xl" />
               ) : user ? (
                 <div className="bg-[#1e2a30] rounded-2xl p-3 border border-white/5 space-y-3.5">
                   <div className="flex items-center gap-3">
-                    {user.image ? (
-                      <div className="w-10 h-10 rounded-full border-2 border-[#df6742] overflow-hidden relative flex-shrink-0">
+                    {/* FIXED: Mobile image rendering & fallback protection */}
+                    {user.image && user.image !== "null" ? (
+                      <div className="w-10 h-10 rounded-full border-2 border-[#df6742] overflow-hidden relative block shrink-0">
                         <Image
                           src={user.image}
                           alt="Profile"
                           fill
                           sizes="40px"
                           unoptimized
-                          className="object-cover"
+                          className="object-cover w-full h-full"
                         />
                       </div>
                     ) : (
-                      <UserInitials name={user.name} size="w-10 h-10" textSize="text-base" />
+                      <UserInitials
+                        name={user.name}
+                        size="w-10 h-10"
+                        textSize="text-base"
+                      />
                     )}
                     <div className="min-w-0 flex-1">
                       <span
@@ -511,10 +564,20 @@ const Navbar = () => {
                       >
                         {user.role}
                       </span>
-                      
+
                       <div className="text-[12px] text-white/90 font-medium space-y-0.5 bg-black/10 p-2 rounded-lg mt-1">
-                        <div className="truncate"><span className="text-white/40 font-semibold">Name:</span> {user.name}</div>
-                        <div className="truncate"><span className="text-white/40 font-semibold">Email:</span> {user.email}</div>
+                        <div className="truncate">
+                          <span className="text-white/40 font-semibold">
+                            Name:
+                          </span>{" "}
+                          {user.name}
+                        </div>
+                        <div className="truncate">
+                          <span className="text-white/40 font-semibold">
+                            Email:
+                          </span>{" "}
+                          {user.email}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -545,7 +608,6 @@ const Navbar = () => {
                 </div>
               )}
             </div>
-
           </div>
         </div>
       )}

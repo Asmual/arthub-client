@@ -8,5 +8,5 @@ git push -u origin main
 
 
 git add .
-git commit -m "(navbar): add search functionality and optimize profile dropdown design"
+git commit -m "Completed Google OAuth authentication and environment variables setup."
 git push

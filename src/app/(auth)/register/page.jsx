@@ -12,7 +12,7 @@ import {
   FaEnvelope,
   FaLock,
 } from "react-icons/fa";
-import { signUp } from "@/lib/auth-client";
+import { signUp, signIn } from "@/lib/auth-client";
 import toast from "react-hot-toast";
 
 const RegisterPage = () => {
@@ -37,6 +37,21 @@ const RegisterPage = () => {
   // Explicitly handle customized user roles inside state structure
   const handleRoleSelect = (selectedRole) => {
     setFormData((prev) => ({ ...prev, role: selectedRole }));
+  };
+
+  // Handle Google Social Sign Up
+  const handleGoogleSignUp = async () => {
+    setLoading(true);
+    try {
+      await signIn.social({
+        provider: "google",
+        callbackURL: "/",
+      });
+    } catch (err) {
+      setLoading(false);
+      toast.error("Google authentication failed.");
+      console.error("Google Register Error:", err);
+    }
   };
 
   // Handle client-side registration workflow
@@ -64,12 +79,10 @@ const RegisterPage = () => {
           onRequest: () => setLoading(true),
           onSuccess: () => {
             setLoading(false);
-            // Flash a success notification persisting for 3 seconds
             toast.success("Registration Successful! Welcome to ArtHub.", {
               duration: 3000,
             });
 
-            // Delay the redirect so users can see the success message
             setTimeout(() => {
               router.push("/");
               router.refresh();
@@ -77,7 +90,6 @@ const RegisterPage = () => {
           },
           onError: (ctx) => {
             setLoading(false);
-            // Flash dynamic server exceptions or generic defaults for 3 seconds
             toast.error(
               ctx.error.message || "Registration failed. Try again.",
               { duration: 3000 },
@@ -140,7 +152,7 @@ const RegisterPage = () => {
                     : "bg-white/5 text-white/60 border-white/10 hover:border-white/20 hover:bg-white/10"
                 }`}
               >
-                <FaUser className="w-3.5 h-3.5" />
+                <FaUser className="w-3.5 h-3.5 shrink-0" />
                 <span>User (Buyer)</span>
               </button>
 
@@ -154,7 +166,7 @@ const RegisterPage = () => {
                     : "bg-white/5 text-white/60 border-white/10 hover:border-white/20 hover:bg-white/10"
                 }`}
               >
-                <FaPalette className="w-3.5 h-3.5" />
+                <FaPalette className="w-3.5 h-3.5 shrink-0" />
                 <span>Artist</span>
               </button>
             </div>
@@ -292,12 +304,10 @@ const RegisterPage = () => {
         <button
           type="button"
           disabled={loading}
-          onClick={() =>
-            toast.success("Google registration triggered", { duration: 3000 })
-          }
+          onClick={handleGoogleSignUp}
           className="w-full flex items-center justify-center gap-3 py-2.5 bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/20 text-sm font-bold rounded-xl transition-all active:scale-[0.98] disabled:opacity-50"
         >
-          <FaGoogle className="w-4 h-4 text-white" />
+          <FaGoogle className="w-4 h-4 text-white shrink-0" />
           <span>Sign Up with Google</span>
         </button>
 
