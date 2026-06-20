@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import NextLink from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { signIn, useSession, signOut } from "@/lib/auth-client";
+import { useSession, signOut } from "@/lib/auth-client";
 import toast from "react-hot-toast";
 import {
   ChevronDown,
@@ -193,6 +193,9 @@ const Navbar = () => {
   const isActive = (path) => pathname === path;
   const dashboardLinks = user ? getDashboardLinks(user.role) : [];
 
+  // Strict valid URL verification logic
+  const hasValidImage = user?.image && user.image !== "" && user.image !== "null" && user.image !== undefined;
+
   return (
     <nav
       className="bg-[#2f3f48] text-white shadow-lg sticky top-0 z-50"
@@ -292,13 +295,13 @@ const Navbar = () => {
                   <ul className="absolute top-full left-0 mt-2.5 w-56 bg-[#243239] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 py-1.5">
                     {dashboardLinks.map(
                       ({ href, label, icon: Icon }, index) => (
-                        <li key={`${href}-${label}`}>
+                        <li key={index}>
                           <NextLink
                             href={href}
                             onClick={() => setIsDashboardOpen(false)}
                             className={`flex items-center gap-2.5 px-4 py-2.5 text-sm font-medium transition-colors ${
                               index === 0
-                                ? "text-white/80 hover:text-[#df6742]  font-semibold border-b border-white/5 pb-3 mb-1.5 hover:bg-white/4"
+                                ? "text-white/80 hover:text-[#df6742] font-semibold border-b border-white/5 pb-3 mb-1.5 hover:bg-white/4"
                                 : isActive(href)
                                   ? "text-[#df6742] bg-white/8"
                                   : "text-white/80 hover:text-[#df6742] hover:bg-white/6"
@@ -327,14 +330,14 @@ const Navbar = () => {
                   className="cursor-pointer hover:scale-105 transition-transform focus:outline-none"
                   aria-label="Toggle user menu"
                 >
-                  {user.image && user.image !== "null" ? (
+                  {hasValidImage ? (
                     <div className="w-10 h-10 rounded-full border-2 border-[#df6742] overflow-hidden relative block">
                       <Image
                         alt="User Avatar"
                         src={user.image}
                         fill
                         sizes="40px"
-                        unoptimized
+                        unoptimized // External গুগলের লিংকের জন্য এটি আবশ্যক
                         className="object-cover w-full h-full"
                         onError={(e) => {
                           e.currentTarget.src = "/Images/default-avatar.png";
@@ -353,14 +356,14 @@ const Navbar = () => {
                   <div className="absolute right-0 top-full mt-2.5 w-72 bg-[#243239] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
                     <div className="p-4 bg-[#1e2a30] border-b border-white/10">
                       <div className="flex items-center gap-3.5 mb-3">
-                        {user.image && user.image !== "null" ? (
+                        {hasValidImage ? (
                           <div className="w-12 h-12 rounded-full border-2 border-[#df6742] overflow-hidden relative block shrink-0 shadow-inner">
                             <Image
                               alt="User Avatar"
                               src={user.image}
                               fill
                               sizes="48px"
-                              unoptimized
+                              unoptimized // ড্রপডাউনেও গুগলের ইমেজ লোড করার জন্য এড করা হলো
                               className="object-cover w-full h-full"
                             />
                           </div>
@@ -512,12 +515,12 @@ const Navbar = () => {
                     {dashboardLinks.map(
                       ({ href, label, icon: Icon }, index) => (
                         <NextLink
-                          key={`${href}-${label}-mobile`}
+                          key={index}
                           href={href}
                           onClick={() => setIsMobileMenuOpen(false)}
                           className={`flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors ${
                             index === 0
-                              ? "text-emerald-400 font-bold border-b border-white/5 bg-white/5"
+                              ? "text-[#df6742] font-bold border-b border-white/5 bg-white/5"
                               : isActive(href)
                                 ? "text-[#df6742] font-semibold"
                                 : "text-white/70 hover:bg-white/6 hover:text-white"
@@ -539,15 +542,14 @@ const Navbar = () => {
               ) : user ? (
                 <div className="bg-[#1e2a30] rounded-2xl p-3 border border-white/5 space-y-3.5">
                   <div className="flex items-center gap-3">
-                    {/* FIXED: Mobile image rendering & fallback protection */}
-                    {user.image && user.image !== "null" ? (
+                    {hasValidImage ? (
                       <div className="w-10 h-10 rounded-full border-2 border-[#df6742] overflow-hidden relative block shrink-0">
                         <Image
                           src={user.image}
                           alt="Profile"
                           fill
                           sizes="40px"
-                          unoptimized
+                          unoptimized // মোবাইল মেনুর জন্য গুগল ইমেজে এটি যুক্ত করা হলো
                           className="object-cover w-full h-full"
                         />
                       </div>

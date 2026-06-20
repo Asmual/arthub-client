@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 
-export function middleware(request) {
+export function proxy(request) {
   const { pathname } = request.nextUrl;
 
   // Define protected routes (e.g., all dashboards)
   const isDashboardRoute = pathname.startsWith("/dashboard");
 
   // Check for the session cookie (Better Auth default name)
-  // Use the secure cookie name if in production, or the standard one
   const sessionCookie =
     request.cookies.get("better-auth.session_token") ||
     request.cookies.get("__Secure-better-auth.session_token");
@@ -20,7 +19,7 @@ export function middleware(request) {
   return NextResponse.next();
 }
 
-// Configuration to specify which routes this middleware should run on
+// Configuration to specify which routes this proxy should run on
 export const config = {
   matcher: [
     /*

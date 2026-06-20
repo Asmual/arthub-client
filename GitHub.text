@@ -8,5 +8,5 @@ git push -u origin main
 
 
 git add .
-git commit -m "Completed Google OAuth authentication and environment variables setup."
+git commit -m "Created browse artworks page with dynamic filtering and sorting"
 git push
