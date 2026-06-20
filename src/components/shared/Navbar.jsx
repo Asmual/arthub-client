@@ -588,7 +588,7 @@ const Navbar = () => {
                     className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold text-white bg-[#df6742] hover:bg-[#c55332] transition-colors shadow-sm"
                   >
                     <LogOut size={14} />
-                    Logout from Account
+                    Logout
                   </button>
                 </div>
               ) : (

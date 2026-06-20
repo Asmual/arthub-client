@@ -8,5 +8,5 @@ git push -u origin main
 
 
 git add .
-git commit -m "Created browse artworks page with dynamic filtering and sorting"
+git commit -m "Created View details page for artworks"
 git push
