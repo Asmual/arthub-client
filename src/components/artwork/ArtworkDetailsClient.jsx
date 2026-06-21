@@ -4,33 +4,24 @@
 import { useState } from "react";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client"; 
+import ReviewSection from "./ReviewSection";
 
 export default function ArtworkDetailsClient({ artwork }) {
-  const [reviews, setReviews] = useState([]);
-  const [newComment, setNewComment] = useState("");
-
   const { data: session, isPending } = authClient.useSession();
   const user = session?.user;
 
-  const handleCommentSubmit = (e) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
-    
-    const commentData = {
-      id: Date.now(),
-      text: newComment,
-      user: user?.name || user?.email || "Authenticated User",
-      date: new Date().toLocaleDateString()
-    };
+  // State to manage Artist Profile Popup Modal
+  const [isArtistModalOpen, setIsArtistModalOpen] = useState(false);
 
-    setReviews([commentData, ...reviews]);
-    setNewComment("");
-  };
+  // Simulation Logic: Check if the current user has purchased this specific artwork
+  // Real environment logic: artwork.buyers?.includes(user?.id) or via orders API
+  const hasPaid = artwork.isSold && artwork.buyerId === user?.id; 
 
   return (
     <main className="min-h-screen bg-[#2f3f48] py-12 px-4 sm:px-6 lg:px-8 text-white">
       <div className="max-w-5xl mx-auto space-y-12">
         
+        {/* Core Metadata Display Layer */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
           
           <div className="relative aspect-square w-full rounded-2xl overflow-hidden border border-neutral-500/30 bg-neutral-900/40">
@@ -50,15 +41,22 @@ export default function ArtworkDetailsClient({ artwork }) {
               <p className="text-xs text-neutral-400">Published on {artwork.createdAt}</p>
             </div>
 
-            <div className="flex items-center gap-3 bg-black/10 p-3 rounded-xl border border-neutral-500/10">
+            {/* Interactive Artist Section - Click trigger for Profile Popup Modal */}
+            <div 
+              onClick={() => setIsArtistModalOpen(true)}
+              className="flex items-center gap-3 bg-black/10 p-3 rounded-xl border border-neutral-500/10 hover:bg-black/20 cursor-pointer transition-all border-dashed hover:border-[#df6742]/40 group"
+              title="Click to view artist profile"
+            >
               <img 
                 src={artwork.artistImage} 
                 alt={artwork.artistName} 
-                className="w-10 h-10 rounded-full border border-neutral-500/40"
+                className="w-10 h-10 rounded-full border border-neutral-500/40 group-hover:border-[#df6742]"
               />
               <div>
                 <p className="text-xs text-neutral-400">Artist</p>
-                <p className="text-sm font-bold text-neutral-200">{artwork.artistName}</p>
+                <p className="text-sm font-bold text-neutral-200 group-hover:text-[#df6742] transition-colors">
+                  {artwork.artistName} <span className="text-[10px] text-neutral-500 ml-1">(View Profile)</span>
+                </p>
               </div>
             </div>
 
@@ -97,71 +95,94 @@ export default function ArtworkDetailsClient({ artwork }) {
                     : "bg-[#df6742] hover:bg-[#c5522f] text-white"
                 }`}
               >
-                {artwork.isSold ? "Out of Stock" : "Buy Now with Script"}
+                {artwork.isSold ? "Sold Out" : "Buy Now with Script"}
               </button>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-neutral-500/30 pt-8 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold tracking-tight">
-              Reviews & Comments ({reviews.length})
-            </h2>
-          </div>
-
+        {/* Conditional Review & Comments Layer based on Payment Validation */}
+        <div className="border-t border-neutral-500/30 pt-8">
           {isPending ? (
             <div className="text-sm text-neutral-400 animate-pulse pl-1">
               Verifying authentication status...
             </div>
-          ) : user ? (
-            <form onSubmit={handleCommentSubmit} className="space-y-3">
-              <textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Share your thoughts about this artwork..."
-                rows={3}
-                className="w-full text-sm text-white placeholder-neutral-400 bg-black/10 border border-neutral-500/40 rounded-xl p-3 focus:outline-none focus:border-[#df6742] resize-none"
-              />
-              <button
-                type="submit"
-                className="bg-[#df6742] hover:bg-[#c5522f] text-white text-xs font-bold px-5 py-2.5 rounded-lg transition-colors"
-              >
-                Post Comment
-              </button>
-            </form>
+          ) : hasPaid ? (
+            // Only renders if user has successfully purchased/paid
+            <ReviewSection artworkId={artwork?._id} currentUser={user} />
           ) : (
-            <div className="bg-black/10 border border-neutral-500/20 rounded-xl p-4 text-sm text-neutral-300">
-              Please{" "}
-              <Link href="/login" className="font-bold text-[#df6742] hover:underline mx-1">
-                Sign In
-              </Link>{" "}
-              and verify your purchase history to leave a review.
+            // Professional Locked State View UI
+            <div className="bg-black/10 border border-neutral-500/20 rounded-2xl p-8 text-center max-w-2xl mx-auto space-y-3">
+              <div className="w-12 h-12 bg-neutral-700/50 rounded-full flex items-center justify-center mx-auto text-neutral-400">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </div>
+              <h3 className="text-base font-bold text-neutral-200">Reviews & Comments are Locked</h3>
+              <p className="text-xs text-neutral-400 max-w-md mx-auto leading-relaxed">
+                You must purchase this artwork and complete the payment before sharing your thoughts or feedback.
+              </p>
             </div>
           )}
-
-          <div className="space-y-4">
-            {reviews.length > 0 ? (
-              <div className="space-y-3">
-                {reviews.map((rev) => (
-                  <div key={rev.id} className="bg-black/10 border border-neutral-500/10 rounded-xl p-4 space-y-1">
-                    <div className="flex justify-between items-center text-xs text-neutral-400">
-                      <span className="font-bold text-neutral-200">{rev.user}</span>
-                      <span>{rev.date}</span>
-                    </div>
-                    <p className="text-sm text-neutral-300">{rev.text}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-neutral-400 text-sm italic pl-1">
-                No comments or reviews have been posted yet.
-              </p>
-            )}
-          </div>
         </div>
 
       </div>
+
+      {/* Interactive Artist Profile Modal Popup overlay layer */}
+      {isArtistModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-all animate-fadeIn">
+          <div className="bg-[#1e262b] border border-white/5 rounded-2xl max-w-sm w-full p-6 text-center space-y-6 relative shadow-2xl">
+            
+            {/* Close Trigger Icon Button */}
+            <button 
+              onClick={() => setIsArtistModalOpen(false)}
+              className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M18 6 6 18M6 6l12 12"/>
+              </svg>
+            </button>
+
+            {/* Modal Avatar profile header layer */}
+            <div className="space-y-3">
+              <img 
+                src={artwork.artistImage} 
+                alt={artwork.artistName} 
+                className="w-24 h-24 rounded-full mx-auto border-2 border-[#df6742] object-cover shadow-lg"
+              />
+              <div>
+                <h3 className="text-lg font-bold text-white">{artwork.artistName}</h3>
+                <p className="text-xs text-[#df6742] font-semibold">Verified Creator</p>
+              </div>
+            </div>
+
+            {/* Bio Metadata metrics */}
+            <p className="text-xs text-white/60 leading-relaxed">
+              Professional creator specializing in exquisite {artwork.category || "Fine Art"} masterpieces. Bringing unique visions to live canvas.
+            </p>
+
+            <div className="grid grid-cols-2 gap-2 bg-black/20 p-3 rounded-xl text-center border border-white/5">
+              <div>
+                <p className="text-[10px] uppercase text-white/40 font-bold">Category</p>
+                <p className="text-xs font-bold text-white mt-0.5">{artwork.category}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase text-white/40 font-bold">Country</p>
+                <p className="text-xs font-bold text-white mt-0.5">Global Artist</p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsArtistModalOpen(false)}
+              className="w-full bg-[#df6742] hover:bg-[#c5522f] text-white font-bold text-xs py-2.5 rounded-xl transition-all"
+            >
+              Close Profile
+            </button>
+
+          </div>
+        </div>
+      )}
     </main>
   );
 }

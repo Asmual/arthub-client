@@ -1,78 +1,51 @@
 /* eslint-disable @next/next/no-img-element */
-"use client";
+import NextLink from "next/link";
 
-import Link from "next/link";
-
-/**
- * Artcard Component
- * Renders an individual artwork item with navigation to its detailed view.
- * * @param {Object} props - Component properties.
- * @param {Object} props.artwork - The artwork data object.
- */
 export default function Artcard({ artwork }) {
-  // Destructure required fields from artwork object, including the unique identifier (_id)
-  const { _id, title, price, image, artistName, category, isSold } = artwork;
-
   return (
-    <div className="bg-[#243239] border border-neutral-500/30 rounded-2xl overflow-hidden shadow-lg transition-all duration-300 hover:shadow-2xl hover:-translate-y-1 flex flex-col h-full">
-      
-      {/* Image Container Section */}
-      <div className="relative aspect-square w-full bg-neutral-800 overflow-hidden group">
+    <div className="bg-[#1e262b] rounded-2xl overflow-hidden border border-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex flex-col justify-between">
+      {/* Image Container */}
+      <div className="relative aspect-[4/3] w-full overflow-hidden bg-black/10">
         <img
-          src={image}
-          alt={title}
-          className="w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
-          loading="lazy"
+          src={artwork.image || artwork.imageUrl}
+          alt={artwork.title}
+          className="w-full h-full object-cover"
         />
         
-        {/* Category Label Badge */}
-        <span className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-neutral-200 text-[11px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">
-          {category}
-        </span>
-        
-        {/* Product Stock/Availability Status Badge */}
-        {isSold ? (
-          <span className="absolute top-3 right-3 bg-red-500/90 text-white text-[11px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">
+        {/* Availability Badge on top of image */}
+        {artwork.isSold ? (
+          <span className="absolute top-3 left-3 bg-red-500/80 backdrop-blur-md text-[9px] font-bold text-white px-2 py-0.5 rounded uppercase tracking-wider">
             Sold Out
           </span>
         ) : (
-          <span className="absolute top-3 right-3 bg-emerald-500/90 text-white text-[11px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wider">
+          <span className="absolute top-3 left-3 bg-emerald-500/80 backdrop-blur-md text-[9px] font-bold text-white px-2 py-0.5 rounded uppercase tracking-wider">
             Available
           </span>
         )}
       </div>
 
-      {/* Content & Meta Information Area */}
-      <div className="p-5 flex flex-col grow justify-between space-y-4">
+      {/* Content Body */}
+      <div className="p-4 flex flex-col grow justify-between">
         <div>
-          <h3 className="text-lg font-bold text-white line-clamp-1 group-hover:text-[#df6742] transition-colors">
-            {title}
+          <h3 className="text-base font-bold text-white truncate mb-0.5">
+            {artwork.title}
           </h3>
-          <p className="text-sm text-neutral-400 mt-1">
-            By{" "}
-            <span className="font-medium text-neutral-300">{artistName}</span>
+          <p className="text-xs text-white/40 mb-4 truncate">
+            By {artwork.artistName || "Unknown"}
           </p>
         </div>
 
-        {/* Pricing Actions and Dynamic Router Navigation Link */}
-        <div className="flex items-center justify-between pt-3 border-t border-neutral-500/20">
-          <span className="text-xl font-extrabold text-[#df6742]">
-            ${price.toFixed(2)}
+        <div className="flex items-center justify-between mt-auto">
+          <span className="text-[#df6742] text-base font-bold">
+            ${artwork.price}
           </span>
           
-          {/* Dynamic route pointing to the specific artwork instance ID */}
-          <Link href={`/browse/${_id}`}>
-            <button
-              disabled={isSold}
-              className={`text-xs font-bold px-4 py-2 rounded-xl transition-all ${
-                isSold
-                  ? "bg-neutral-600 text-neutral-400 cursor-not-allowed"
-                  : "bg-[#df6742] hover:bg-[#c5522f] text-white shadow-md"
-              }`}
-            >
-              {isSold ? "Details" : "View Details"}
-            </button>
-          </Link>
+          <NextLink
+            href={`/browse/${artwork._id}`}
+            className="bg-[#df6742] hover:bg-[#c85734] text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors duration-200"
+          >
+            View Details
+          </NextLink>
         </div>
       </div>
     </div>

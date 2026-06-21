@@ -1,0 +1,343 @@
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable react-hooks/purity */
+"use client";
+import React, { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
+import Image from "next/image";
+
+/**
+ * Format timestamp values dynamically into Facebook-style string indicators
+ */
+const formatTimeAgo = (timestamp) => {
+  if (!timestamp) return "Just now";
+  const date = new Date(timestamp);
+  const now = new Date();
+  const secondsPast = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (secondsPast < 0) return "Just now";
+  if (secondsPast < 60) return `${secondsPast}s ago`;
+  
+  const minutesPast = Math.floor(secondsPast / 60);
+  if (minutesPast < 60) return `${minutesPast}m ago`;
+  
+  const hoursPast = Math.floor(minutesPast / 60);
+  if (hoursPast < 24) return `${hoursPast}h ago`;
+  
+  const daysPast = Math.floor(hoursPast / 24);
+  if (daysPast < 7) return `${daysPast}d ago`;
+
+  return date.toLocaleDateString();
+};
+
+const ReviewSection = ({ artworkId, currentUser }) => {
+  const [reviews, setReviews] = useState([]);
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+  
+  const [editingId, setEditingId] = useState(null);
+  const [editText, setEditText] = useState("");
+  
+  // Custom Confirmation Modal States
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [targetedDeleteId, setTargetedDeleteId] = useState(null);
+
+  // Custom Toast Notification States
+  const [toastMessage, setToastMessage] = useState("");
+  const [showToast, setShowToast] = useState(false);
+  
+  // Ticker for forcing time calculations
+  const [, setTimeTicker] = useState(Date.now());
+
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://arthub-server.onrender.com";
+  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
+  /**
+   * Triggers a temporary custom toast notification status
+   */
+  const triggerToast = (message) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => {
+      setShowToast(false);
+    }, 3000);
+  };
+
+  /**
+   * Memoized data fetcher to eliminate runtime cascading render exceptions
+   */
+  const fetchReviews = useCallback(async () => {
+    if (!artworkId) return;
+    try {
+      const response = await fetch(`${cleanBaseUrl}/api/reviews/${artworkId}`);
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setReviews(data);
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error("Error loading reviews query stream:", error);
+      setLoading(false);
+    }
+  }, [artworkId, cleanBaseUrl]);
+
+  useEffect(() => {
+    fetchReviews();
+    
+    const tickerInterval = setInterval(() => {
+      setTimeTicker(Date.now());
+    }, 30000);
+
+    return () => clearInterval(tickerInterval);
+  }, [fetchReviews]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!currentUser) return alert("Please log in to continue");
+    if (!text.trim()) return;
+
+    try {
+      const response = await fetch(`${cleanBaseUrl}/api/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          artworkId,
+          userEmail: currentUser.email,
+          userName: currentUser.name,
+          userImage: currentUser.image || "",
+          text: text
+        }),
+      });
+
+      if (response.ok) {
+        setText("");
+        fetchReviews();
+        triggerToast("Comment posted successfully!");
+      }
+    } catch (error) {
+      console.error("Error executing safe review delivery:", error);
+    }
+  };
+
+  const handleUpdate = async (reviewId) => {
+    if (!editText.trim()) return;
+    try {
+      const response = await fetch(`${cleanBaseUrl}/api/reviews/${reviewId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: editText,
+          userEmail: currentUser.email
+        })
+      });
+
+      if (response.ok) {
+        setEditingId(null);
+        setEditText("");
+        fetchReviews();
+        triggerToast("Comment updated successfully!");
+      } else {
+        alert("Action restriction applied.");
+      }
+    } catch (error) {
+      console.error("Mutation submission failure encountered:", error);
+    }
+  };
+
+  const openDeleteConfirmation = (reviewId) => {
+    setTargetedDeleteId(reviewId);
+    setShowDeleteModal(true);
+  };
+
+  const executeDelete = async () => {
+    if (!targetedDeleteId) return;
+    try {
+      const response = await fetch(`${cleanBaseUrl}/api/reviews/${targetedDeleteId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userEmail: currentUser.email
+        })
+      });
+
+      if (response.ok) {
+        setShowDeleteModal(false);
+        setTargetedDeleteId(null);
+        fetchReviews();
+        triggerToast("Successfully deleted comment!");
+      } else {
+        alert("Action restriction applied.");
+      }
+    } catch (error) {
+      console.error("Purge operations channel communication failure:", error);
+    }
+  };
+
+  return (
+    <div className="space-y-6 relative">
+      
+      {/* Dynamic Toast Notification UI Container */}
+      {showToast && (
+        <div className="fixed top-5 right-5 z-50 bg-[#df6742] text-white text-sm font-semibold px-5 py-3 rounded-xl shadow-2xl border border-white/10 transition-all duration-300 animate-bounce">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+            </svg>
+            {toastMessage}
+          </div>
+        </div>
+      )}
+
+      {/* Custom Modal Confirmation Dialog View */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-[#2f3f48] border border-neutral-500/20 max-w-md w-full p-6 rounded-2xl shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+            <h3 className="text-lg font-bold text-neutral-100">Delete Comment</h3>
+            <p className="text-sm text-neutral-300">
+              Are you sure you want to permanently delete this comment? This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setTargetedDeleteId(null);
+                }}
+                className="bg-neutral-700 hover:bg-neutral-600 text-neutral-200 text-xs font-bold px-4 py-2 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeDelete}
+                className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold tracking-tight">
+          Reviews & Comments ({reviews.length})
+        </h2>
+      </div>
+
+      {currentUser ? (
+        <form onSubmit={handleSubmit} className="space-y-3">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Share your thoughts about this artwork..."
+            rows={3}
+            className="w-full text-sm text-white placeholder-neutral-400 bg-black/10 border border-neutral-500/40 rounded-xl p-3 focus:outline-none focus:border-[#df6742] resize-none"
+          />
+          <button
+            type="submit"
+            className="bg-[#df6742] hover:bg-[#c5522f] text-white text-xs font-bold px-5 py-2.5 rounded-lg transition-colors"
+          >
+            Post Comment
+          </button>
+        </form>
+      ) : (
+        <div className="bg-black/10 border border-neutral-500/20 rounded-xl p-4 text-sm text-neutral-300">
+          Please{" "}
+          <Link href="/login" className="font-bold text-[#df6742] hover:underline mx-1">
+            Sign In
+          </Link>{" "}
+          to leave a review or post comments on this artwork.
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {loading ? (
+          <p className="text-neutral-400 text-sm animate-pulse">Loading comments stream...</p>
+        ) : reviews.length > 0 ? (
+          <div className="space-y-3">
+            {reviews.map((rev) => {
+              const isOwner = currentUser?.email === rev.userEmail;
+              const isCurrentlyEditing = editingId === rev._id;
+
+              return (
+                <div key={rev._id} className="bg-black/10 border border-neutral-500/10 rounded-xl p-4 space-y-2">
+                  <div className="flex justify-between items-center text-xs text-neutral-400">
+                    <div className="flex items-center gap-2">
+                      {rev.userImage && (
+                        <div className="relative w-5 h-5 rounded-full overflow-hidden border border-neutral-500/20">
+                          <Image 
+                            src={rev.userImage} 
+                            alt="" 
+                            fill
+                            sizes="20px"
+                            className="object-cover"
+                          />
+                        </div>
+                      )}
+                      <span className="font-bold text-neutral-200">{rev.userName}</span>
+                    </div>
+                    <span>{formatTimeAgo(rev.createdAt || rev.date)}</span>
+                  </div>
+
+                  {isCurrentlyEditing ? (
+                    <div className="space-y-2 pt-1">
+                      <textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        rows={2}
+                        className="w-full text-sm text-white bg-black/20 border border-neutral-500/40 rounded-lg p-2 focus:outline-none focus:border-[#df6742] resize-none"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleUpdate(rev._id)}
+                          className="bg-[#df6742] text-white text-[11px] font-bold px-3 py-1.5 rounded"
+                        >
+                          Save Changes
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className="bg-neutral-700 text-neutral-300 text-[11px] font-bold px-3 py-1.5 rounded"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-start gap-4">
+                      <p className="text-sm text-neutral-300 whitespace-pre-wrap">{rev.text}</p>
+                      
+                      {isOwner && (
+                        <div className="flex items-center gap-2 shrink-0 opacity-60 hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => {
+                              setEditingId(rev._id);
+                              setEditText(rev.text);
+                            }}
+                            className="text-xs text-neutral-400 hover:text-[#df6742] transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <span className="text-neutral-600 text-xs">|</span>
+                          <button
+                            onClick={() => openDeleteConfirmation(rev._id)}
+                            className="text-xs text-neutral-400 hover:text-red-400 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-neutral-400 text-sm italic pl-1">
+            No comments or reviews have been posted yet.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ReviewSection;

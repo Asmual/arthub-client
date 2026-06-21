@@ -1,0 +1,151 @@
+/* eslint-disable @next/next/no-img-element */
+"use client";
+
+import React, { useEffect, useState } from "react";
+import NextLink from "next/link";
+
+const ArtworkSkeleton = () => (
+  <div className="bg-[#1e262b] rounded-2xl overflow-hidden border border-white/5 animate-pulse">
+    <div className="aspect-[4/3] bg-white/5 w-full" />
+    <div className="p-6 flex flex-col gap-4">
+      <div className="h-6 w-3/4 bg-white/10 rounded" />
+      <div className="h-4 w-1/2 bg-white/5 rounded" />
+      <div className="flex justify-between items-center mt-2">
+        <div className="h-6 w-20 bg-white/10 rounded" />
+        <div className="h-9 w-24 bg-white/10 rounded-xl" />
+      </div>
+    </div>
+  </div>
+);
+
+const FeaturedArtworks = () => {
+  const [artworks, setArtworks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchFeaturedArtworks = async () => {
+      try {
+        const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
+        const res = await fetch(`${base}/api/artworks/featured`);
+        
+        if (!res.ok) throw new Error("Failed to fetch featured artworks.");
+        const data = await res.json();
+        
+        setArtworks(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error("Fetch Error:", err);
+        setError("Could not load featured masterpieces.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFeaturedArtworks();
+  }, []);
+
+  return (
+    <section className="bg-[#243239] py-20 px-6 border-t border-white/5">
+      <div className="max-w-6xl mx-auto">
+        
+        {/* Centered Section Header */}
+        <div className="flex flex-col items-center text-center mb-16 max-w-2xl mx-auto">
+          <div className="inline-flex items-center gap-2 bg-[#243239]/10 border border-[#df6742]/30 text-[#df6742] px-4 py-1.5 rounded-full text-[11px] font-bold tracking-wider mb-4">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#df6742]" />
+            CURATED EXHIBITION
+          </div>
+          
+          <h2 className="text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-tight">
+            Featured <span className="text-[#df6742]">Artworks</span>
+          </h2>
+          
+          <p className="text-sm md:text-base text-white/50 mt-4 leading-relaxed">
+            Explore the most exclusive and recently updated masterpieces chosen by our curators.
+          </p>
+
+          {!loading && !error && (
+            <NextLink
+              href="/browse"
+              className="mt-6 text-[#df6742] hover:text-white text-sm font-bold transition-colors duration-200 flex items-center gap-1.5 group border-b border-[#df6742]/0 hover:border-white/10 pb-0.5"
+            >
+              Explore Full Gallery
+              <svg width="16" height="16" viewBox="0 0 14 14" fill="none" className="transition-transform group-hover:translate-x-1">
+                <path d="M2 7h10M8 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </NextLink>
+          )}
+        </div>
+
+        {error && (
+          <p className="text-center text-white/40 text-sm py-16">{error}</p>
+        )}
+
+        {!error && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {loading
+              ? Array.from({ length: 6 }).map((_, i) => <ArtworkSkeleton key={i} />)
+              : artworks.map((artwork) => (
+                  <div
+                    key={artwork._id}
+                    className="bg-[#1e262b] rounded-2xl overflow-hidden border border-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl flex flex-col justify-between"
+                  >
+                    {/* Artwork Image Container */}
+                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-black/10">
+                      <img
+                        src={artwork.image || artwork.imageUrl}
+                        alt={artwork.title}
+                        className="w-full h-full object-cover"
+                      />
+                      
+                      <div className="absolute top-4 left-4 flex gap-2">
+                        <span className="bg-black/60 backdrop-blur-md text-[10px] font-bold text-white px-2.5 py-1 rounded uppercase tracking-wider">
+                          {artwork.category || "Artwork"}
+                        </span>
+                      </div>
+
+                      <div className="absolute top-4 right-4">
+                        <span className="bg-[#2ecc71] text-[10px] font-bold text-white px-2.5 py-1 rounded uppercase tracking-wider">
+                          {artwork.status || "Available"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Artwork Details Content */}
+                    <div className="p-6 flex flex-col grow justify-between">
+                      <div>
+                        <h3 className="text-xl font-bold text-white truncate mb-1">
+                          {artwork.title}
+                        </h3>
+                        <p className="text-sm text-white/40 mb-6">
+                          By {artwork.artistName || "Unknown Artist"}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-auto pt-2">
+                        <span className="text-[#df6742] text-xl font-bold">
+                          ${artwork.price}
+                        </span>
+                        
+                        {/* Correct Routing to Avoid 404 Errors */}
+                        <NextLink
+                          href={`/browse/${artwork._id}`}
+                          className="bg-[#df6742] hover:bg-[#c85734] text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors duration-200"
+                        >
+                          View Details
+                        </NextLink>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+          </div>
+        )}
+
+        {!loading && !error && artworks.length === 0 && (
+          <p className="text-center text-white/40 text-sm py-16">No recent artworks found.</p>
+        )}
+
+      </div>
+    </section>
+  );
+};
+
+export default FeaturedArtworks;
