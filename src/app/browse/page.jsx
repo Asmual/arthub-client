@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getDB } from "@/lib/mongodb";
 import BrowseArtworksClient from "@/components/artwork/BrowseArtworksClient";
 
@@ -6,7 +7,6 @@ export default async function BrowseArtworksPage() {
 
   try {
     const db = await getDB();
-
     const data = await db.collection("artworks").find({}).toArray();
 
     artworks = data.map(item => ({
@@ -19,5 +19,14 @@ export default async function BrowseArtworksPage() {
     console.error("Error fetching data from MongoDB:", error);
   }
 
-  return <BrowseArtworksClient initialArtworks={artworks} />;
+  return (
+    // Wrapped with Suspense to handle searchParams safely during build and client-side navigation
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#2f3f48] flex items-center justify-center">
+        <p className="text-white text-sm font-medium animate-pulse">Loading Artworks...</p>
+      </div>
+    }>
+      <BrowseArtworksClient initialArtworks={artworks} />
+    </Suspense>
+  );
 }

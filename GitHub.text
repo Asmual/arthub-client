@@ -8,5 +8,5 @@ git push -u origin main
 
 
 git add .
-git commit -m "Created View details page and get data from MongoDB"
+git commit -m "feat: implement conditional review lock logic and artist profile popup modal"
 git push

@@ -1,15 +1,22 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import NextLink from "next/link";
 import Artcard from "@/components/artwork/Artcard";
 
 export default function BrowseArtworksClient({ initialArtworks = [] }) {
-  // States for Search & Filters
+  const searchParams = useSearchParams();
+  
+  // Get initial category from URL query (?category=...) or default to "All"
+  const urlCategory = searchParams.get("category") || "All";
+
+  // Search & Filter States
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedCategory, setSelectedCategory] = useState(urlCategory);
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [appliedMinPrice, setAppliedMinPrice] = useState("");
@@ -21,7 +28,15 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
-  // Debounce logic to prevent performance lag
+  // Sync state if URL category changes dynamically
+  useEffect(() => {
+    if (searchParams.get("category")) {
+      setSelectedCategory(searchParams.get("category"));
+      setCurrentPage(1);
+    }
+  }, [searchParams]);
+
+  // Debounce search query to optimize performance
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchQuery);
@@ -29,7 +44,6 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  // Fixed Reset Function
   const handleReset = () => {
     setSearchQuery("");
     setDebouncedSearch("");
@@ -43,7 +57,6 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
     setCurrentPage(1);
   };
 
-  // Apply Price Trigger
   const handleApplyPrice = (e) => {
     e.preventDefault();
     setAppliedMinPrice(minPrice);
@@ -51,7 +64,7 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
     setCurrentPage(1);
   };
 
-  // Filter & Sort Logic
+  // Filter & Sort Pipeline
   const filteredArtworks = useMemo(() => {
     let result = [...initialArtworks];
 
@@ -98,7 +111,6 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
     sortBy,
   ]);
 
-  // Pagination Logic Calculations
   const totalPages = Math.ceil(filteredArtworks.length / itemsPerPage);
 
   const displayedArtworks = useMemo(() => {
@@ -114,7 +126,8 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
   return (
     <main className="min-h-screen bg-[#2f3f48] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header Section with Orange Title & "Back" Button */}
+        
+        {/* Top Header Toolbar */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-neutral-500/40 pb-6">
           <div>
             <h1 className="text-3xl font-extrabold text-white tracking-tight">
@@ -122,7 +135,6 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
             </h1>
           </div>
 
-          {/* Back Button updated to show only "Back" */}
           <NextLink
             href="/"
             className="inline-flex items-center gap-2 bg-[#1e262b] hover:bg-black/20 text-white/90 hover:text-white text-xs font-bold px-5 py-2.5 rounded-xl border border-white/5 transition-all duration-200 shadow-sm"
@@ -143,9 +155,10 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
           </NextLink>
         </div>
 
-        {/* Two-Column Layout */}
+        {/* Core Layout Content */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Left Column: Filter Sidebar Panel */}
+          
+          {/* Left Panel: Filters Sidebar */}
           <div className="bg-[#2f3f48] border border-neutral-500/40 rounded-2xl p-6 h-fit space-y-6">
             <div className="flex items-center justify-between border-b border-neutral-500/40 pb-3">
               <h2 className="text-sm font-bold text-white uppercase tracking-wider">
@@ -159,7 +172,7 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
               </button>
             </div>
 
-            {/* 1. Title/Artist Search Input */}
+            {/* Search Filter */}
             <div>
               <label className="block text-[11px] font-bold text-neutral-300 uppercase tracking-wide mb-2">
                 Search Title / Artist
@@ -193,7 +206,7 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
               </div>
             </div>
 
-            {/* 2. Dropdown Category Selector */}
+            {/* Category Select Filter */}
             <div>
               <label className="block text-[11px] font-bold text-neutral-300 uppercase tracking-wide mb-2">
                 Category
@@ -214,7 +227,7 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
               </select>
             </div>
 
-            {/* 3. Availability Selection */}
+            {/* Availability Radio Filter */}
             <div>
               <label className="block text-[11px] font-bold text-neutral-300 uppercase tracking-wide mb-2">
                 Availability
@@ -246,7 +259,7 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
               </div>
             </div>
 
-            {/* 4. Custom Price Range Inputs */}
+            {/* Price Filter Form */}
             <div>
               <label className="block text-[11px] font-bold text-neutral-300 uppercase tracking-wide mb-2">
                 Price Range
@@ -278,7 +291,7 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
             </div>
           </div>
 
-          {/* Right Column: Top Toolbar Selector & Updated Custom Grid Layout */}
+          {/* Right Panel: Content Results */}
           <div className="col-span-1 lg:col-span-3 space-y-6">
             <div className="bg-transparent border border-neutral-500/40 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <span className="text-sm font-medium text-white/90">
@@ -286,7 +299,7 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
                 Artworks
               </span>
 
-              {/* Dropdown Sorting Component */}
+              {/* Sorting Filter */}
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-neutral-300 uppercase tracking-wider">
                   Sort By:
@@ -305,7 +318,7 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
               </div>
             </div>
 
-            {/* Custom Responsive Grid: 1 column on mobile, 2 columns on tablet, 3 columns on desktop */}
+            {/* Artworks Dynamic Responsive Grid */}
             {displayedArtworks.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {displayedArtworks.map((artwork) => (
@@ -326,7 +339,7 @@ export default function BrowseArtworksClient({ initialArtworks = [] }) {
               </div>
             )}
 
-            {/* Professional Pagination Footer Control Section */}
+            {/* Pagination Controls */}
             {totalPages > 1 && (
               <div className="flex justify-center items-center gap-2 pt-8 border-t border-neutral-500/20">
                 <button
