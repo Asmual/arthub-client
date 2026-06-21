@@ -6,7 +6,7 @@ import NextLink from "next/link";
 
 const ArtworkSkeleton = () => (
   <div className="bg-[#1e262b] rounded-2xl overflow-hidden border border-white/5 animate-pulse">
-    <div className="aspect-[4/3] bg-white/5 w-full" />
+    <div className="aspect-4/3 bg-white/5 w-full" />
     <div className="p-6 flex flex-col gap-4">
       <div className="h-6 w-3/4 bg-white/10 rounded" />
       <div className="h-4 w-1/2 bg-white/5 rounded" />
@@ -44,7 +44,7 @@ const FeaturedArtworks = () => {
   }, []);
 
   return (
-    <section className="bg-[#243239] py-20 px-6 border-t border-white/5">
+    <section className="bg-[#2a3942] py-20 px-6 border-t border-white/5">
       <div className="max-w-6xl mx-auto">
         
         {/* Centered Section Header */}
@@ -89,7 +89,7 @@ const FeaturedArtworks = () => {
                     className="bg-[#1e262b] rounded-2xl overflow-hidden border border-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl flex flex-col justify-between"
                   >
                     {/* Artwork Image Container */}
-                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-black/10">
+                    <div className="relative aspect-4/3 w-full overflow-hidden bg-black/10">
                       <img
                         src={artwork.image || artwork.imageUrl}
                         alt={artwork.title}

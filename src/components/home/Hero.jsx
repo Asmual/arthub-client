@@ -38,7 +38,7 @@ const slidesData = [
     headingLast: "Vibes",
     description:
       "Dive deep into modern abstractions, classic landscapes, and cutting-edge digital renders tailored for art collectors and enthusiasts.",
-  }
+  },
 ];
 
 const badgeVariants = {
@@ -113,14 +113,14 @@ const Hero = ({ currentUser }) => {
 
   return (
     <div
-      className="w-full h-[calc(100vh-64px)] relative bg-[#2f3f48] overflow-hidden [&_.swiper-pagination]:!bottom-8 [&_.swiper-pagination-bullet]:!w-2 [&_.swiper-pagination-bullet]:!h-2 [&_.swiper-pagination-bullet]:!mx-1.5 [&_.swiper-pagination-bullet]:!bg-white/35 [&_.swiper-pagination-bullet]:!opacity-1 [&_.swiper-pagination-bullet]:!transition-all [&_.swiper-pagination-bullet]:!duration-350 [&_.swiper-pagination-bullet-active]:!w-8 [&_.swiper-pagination-bullet-active]:!bg-[#df6742] [&_.swiper-pagination-bullet-active]:!rounded-full"
+      className="w-full h-[calc(100vh-64px)] sm:h-[calc(100vh-35px)] relative bg-[#2f3f48] overflow-hidden custom-swiper-container"
       style={{ fontFamily: "'Montserrat', sans-serif" }}
     >
       <Swiper
         modules={[Autoplay, EffectFade, Pagination, Navigation]}
         effect="fade"
         fadeEffect={{ crossFade: true }}
-        autoplay={{ delay: 6000, disableOnInteraction: false }}
+        autoplay={{ delay: 5000, disableOnInteraction: false }}
         navigation={{ nextEl: ".custom-next", prevEl: ".custom-prev" }}
         pagination={{ clickable: true }}
         loop
@@ -147,8 +147,7 @@ const Hero = ({ currentUser }) => {
 
       {/* Floating Content Layer Layered Securely Over Sliders */}
       <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
-        <div className="max-w-4xl mx-auto px-4 text-center text-white space-y-6 pt-[30px]">
-
+        <div className="max-w-4xl mx-auto px-4 text-center text-white space-y-6 pt-0 sm:pt-7.5">
           {/* Badge */}
           <AnimatePresence mode="wait">
             <motion.div
@@ -235,7 +234,6 @@ const Hero = ({ currentUser }) => {
               </motion.div>
             </motion.div>
           </AnimatePresence>
-
         </div>
       </div>
 

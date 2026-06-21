@@ -8,5 +8,5 @@ git push -u origin main
 
 
 git add .
-git commit -m "feat: implement conditional review lock logic and artist profile popup modal"
+git commit -m "feat(navbar): add real-time live search & dropdown manu fixed Role Base"
 git push
