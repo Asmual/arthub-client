@@ -8,5 +8,5 @@ git push -u origin main
 
 
 git add .
-git commit -m "feat(navbar): add real-time live search & dropdown manu fixed Role Base"
+git commit -m "feat(stripe): complete full-stack integration of stripe hosted checkout and dynamic order sync"
 git push

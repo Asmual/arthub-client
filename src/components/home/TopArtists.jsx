@@ -31,10 +31,9 @@ const STAT_COLOR = {
 const getInitials = (name = "") =>
   name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
-/* ── Skeleton ── */
 const SkeletonCard = () => (
-  <div className="border border-white/8 bg-white/[#243239] rounded-[18px] p-7 flex flex-col items-center gap-4 animate-pulse">
-    <div className="w-[84px] h-[84px] rounded-full bg-white/10" />
+  <div className="border border-white/8 bg-[#243239] rounded-[18px] p-7 flex flex-col items-center gap-4 animate-pulse">
+    <div className="w-21 h-21 rounded-full bg-white/10" />
     <div className="h-4 w-28 bg-white/10 rounded-full" />
     <div className="h-2.5 w-16 bg-white/7 rounded-full" />
     <div className="w-10 h-px bg-white/10" />
@@ -57,12 +56,14 @@ const TopArtists = () => {
   useEffect(() => {
     const fetchTopArtists = async () => {
       try {
+        // Structured fallbacks for cross-origin compliance
         const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server.onrender.com").replace(/\/$/, "");
         const res = await fetch(`${base}/api/artists/top`);
-        if (!res.ok) throw new Error("Failed to fetch data");
+        if (!res.ok) throw new Error("Failed to fetch top creators.");
         
         const data = await res.json();
         
+        // Content validation and analytics-based ranking
         const cleanData = Array.isArray(data) 
           ? data
               .filter((user) => user && user.role === "artist")
@@ -88,9 +89,8 @@ const TopArtists = () => {
     >
       <div className="max-w-5xl mx-auto">
 
-        {/* Header */}
         <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 bg-[#df6742]/[0.12] border border-[#df6742]/28 text-[#df6742] px-4 py-1.5 rounded-full text-[11px] font-bold tracking-[1.2px] mb-4">
+          <div className="inline-flex items-center gap-2 bg-[#df6742]/12 border border-[#df6742]/28 text-[#df6742] px-4 py-1.5 rounded-full text-[11px] font-bold tracking-[1.2px] mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-[#df6742]" />
             FEATURED CREATORS
           </div>
@@ -102,12 +102,10 @@ const TopArtists = () => {
           </p>
         </div>
 
-        {/* Error */}
         {error && (
           <p className="text-center text-white/35 text-sm py-10">{error}</p>
         )}
 
-        {/* Grid */}
         {!error && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {loading
@@ -117,37 +115,33 @@ const TopArtists = () => {
                     key={artist._id?.toString() || artist._id || i}
                     className={`relative border rounded-[18px] p-7 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 ${
                       i === 0
-                        ? "bg-[#df6742]/[0.06] border-[#df6742]/22"
-                        : "bg-white/[0.04] border-white/8 hover:border-[#df6742]/28"
+                        ? "bg-[#df6742]/6 border-[#df6742]/22"
+                        : "bg-white/4 border-white/8 hover:border-[#df6742]/28"
                     }`}
                   >
-                    {/* Rank badge */}
                     <div className={`absolute top-3.5 left-3.5 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${RANK_BADGE[i]}`}>
                       {i + 1}
                     </div>
 
-                    {/* Avatar Profile Image */}
                     <div className="relative mb-4">
                       {artist.image ? (
                         <img
                           src={artist.image}
                           alt={artist.name || "Artist"}
-                          className={`w-[84px] h-[84px] rounded-full object-cover border-[3px] ${AVATAR_BORDER[i]}`}
+                          className={`w-21 h-21 rounded-full object-cover border-[3px] ${AVATAR_BORDER[i]}`}
                           onError={(e) => {
-                        
                             e.target.onerror = null; 
                             e.target.style.display = 'none';
                           }}
                         />
                       ) : (
                         <div
-                          className={`w-[84px] h-[84px] rounded-full bg-gradient-to-br border-[3px] flex items-center justify-center text-white text-2xl font-bold ${AVATAR_GRADIENT[i]} ${AVATAR_BORDER[i]}`}
+                          className={`w-21 h-21 rounded-full bg-linear-to-br border-[3px] flex items-center justify-center text-white text-2xl font-bold ${AVATAR_GRADIENT[i]} ${AVATAR_BORDER[i]}`}
                         >
                           {getInitials(artist.name)}
                         </div>
                       )}
                       
-                      {/* Verified tick */}
                       <div className="absolute bottom-0.5 right-0.5 w-5 h-5 bg-[#df6742] rounded-full border-[2.5px] border-[#2f3f48] flex items-center justify-center">
                         <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
                           <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -155,20 +149,16 @@ const TopArtists = () => {
                       </div>
                     </div>
 
-                    {/* Name */}
                     <p className="text-[16px] font-bold text-white mb-1 tracking-wide">
                       {artist.name || "Unknown Artist"}
                     </p>
 
-                    {/* Specialty */}
                     <p className="text-[10px] text-white/38 tracking-[0.8px] uppercase mb-5">
                       {artist.specialty || "Digital Artist"}
                     </p>
 
-                    {/* Divider */}
                     <div className="w-10 h-px bg-white/10 mb-5" />
 
-                    {/* Stats — Artworks + Sales */}
                     <div className="flex gap-10 justify-center">
                       <div className="flex flex-col items-center gap-1">
                         <span className={`text-[19px] font-bold ${STAT_COLOR[i]}`}>
@@ -193,7 +183,6 @@ const TopArtists = () => {
           </div>
         )}
 
-        {/* See All */}
         {!loading && !error && (
           <div className="text-center mt-10">
             <NextLink

@@ -26,7 +26,8 @@ const FeaturedArtworks = () => {
   useEffect(() => {
     const fetchFeaturedArtworks = async () => {
       try {
-        const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
+        // Dynamic base URL fetching with clean production fallback
+        const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server.onrender.com").replace(/\/$/, "");
         const res = await fetch(`${base}/api/artworks/featured`);
         
         if (!res.ok) throw new Error("Failed to fetch featured artworks.");
@@ -47,7 +48,6 @@ const FeaturedArtworks = () => {
     <section className="bg-[#2a3942] py-20 px-6 border-t border-white/5">
       <div className="max-w-6xl mx-auto">
         
-        {/* Centered Section Header */}
         <div className="flex flex-col items-center text-center mb-16 max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-[#243239]/10 border border-[#df6742]/30 text-[#df6742] px-4 py-1.5 rounded-full text-[11px] font-bold tracking-wider mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-[#df6742]" />
@@ -88,7 +88,6 @@ const FeaturedArtworks = () => {
                     key={artwork._id}
                     className="bg-[#1e262b] rounded-2xl overflow-hidden border border-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl flex flex-col justify-between"
                   >
-                    {/* Artwork Image Container */}
                     <div className="relative aspect-4/3 w-full overflow-hidden bg-black/10">
                       <img
                         src={artwork.image || artwork.imageUrl}
@@ -109,7 +108,6 @@ const FeaturedArtworks = () => {
                       </div>
                     </div>
 
-                    {/* Artwork Details Content */}
                     <div className="p-6 flex flex-col grow justify-between">
                       <div>
                         <h3 className="text-xl font-bold text-white truncate mb-1">
@@ -125,7 +123,6 @@ const FeaturedArtworks = () => {
                           ${artwork.price}
                         </span>
                         
-                        {/* Correct Routing to Avoid 404 Errors */}
                         <NextLink
                           href={`/browse/${artwork._id}`}
                           className="bg-[#df6742] hover:bg-[#c85734] text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors duration-200"

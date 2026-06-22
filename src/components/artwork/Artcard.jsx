@@ -5,7 +5,7 @@ export default function Artcard({ artwork }) {
   return (
     <div className="bg-[#1e262b] rounded-2xl overflow-hidden border border-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex flex-col justify-between">
       {/* Image Container */}
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-black/10">
+      <div className="relative aspect-4/3 w-full overflow-hidden bg-black/10">
         <img
           src={artwork.image || artwork.imageUrl}
           alt={artwork.title}
