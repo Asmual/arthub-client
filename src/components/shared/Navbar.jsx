@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable react-hooks/static-components */
 "use client";
@@ -105,6 +106,7 @@ const Navbar = () => {
   const [isMobileDashboardOpen, setIsMobileDashboardOpen] = useState(false);
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
+  const [imageError, setImageError] = useState(false);
   
   // Search States
   const [searchQuery, setSearchQuery] = useState("");
@@ -117,15 +119,17 @@ const Navbar = () => {
   const desktopSearchRef = useRef(null);
   const mobileSearchRef = useRef(null);
 
-  // Click Outside to Close Dropdowns
+  // Reset image error state when user session changes
+  useEffect(() => {
+    setImageError(false);
+  }, [user]);
+
+  // Click Outside Handler
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dashboardRef.current && !dashboardRef.current.contains(e.target)) setIsDashboardOpen(false);
       if (avatarRef.current && !avatarRef.current.contains(e.target)) setIsAvatarOpen(false);
       if (desktopSearchRef.current && !desktopSearchRef.current.contains(e.target)) setIsSearchFocused(false);
-      if (mobileSearchRef.current && !mobileSearchRef.current.contains(e.target)) {
-        // মোবাইল সার্চ ড্রপডাউন বাইরে ক্লিক করলে বন্ধ হবে
-      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -140,7 +144,6 @@ const Navbar = () => {
       }
       setIsSearching(true);
       try {
-
         const res = await fetch(`http://localhost:5000/api/artworks/search?query=${encodeURIComponent(searchQuery)}`);
         if (res.ok) {
           const data = await res.json();
@@ -189,9 +192,18 @@ const Navbar = () => {
     }
   };
 
+  // Navigates directly to the designated profile page based on current user role
+  const navigateToProfile = () => {
+    if (!user) return;
+    const targetRole = user.role === "buyer" ? "user" : user.role;
+    router.push(`/dashboard/${targetRole}/profile`);
+    setIsAvatarOpen(false);
+    setIsMobileMenuOpen(false);
+  };
+
   const isActive = (path) => pathname === path;
   const dashboardLinks = user ? getDashboardLinks(user.role) : [];
-  const hasValidImage = user?.image && user.image !== "" && user.image !== "null" && user.image !== "undefined";
+  const hasValidImage = user?.image && user.image !== "" && user.image !== "null" && user.image !== "undefined" && !imageError;
 
   // Reusable Suggestion List Component
   const SearchSuggestions = ({ closeSearch }) => (
@@ -260,7 +272,6 @@ const Navbar = () => {
               </div>
             </form>
 
-            {/* Desktop Live Search Suggestion Panel */}
             {isSearchFocused && searchQuery.trim() !== "" && (
               <SearchSuggestions closeSearch={() => setIsSearchFocused(false)} />
             )}
@@ -304,7 +315,7 @@ const Navbar = () => {
                 <button onClick={() => setIsAvatarOpen((p) => !p)} className="cursor-pointer hover:scale-105 transition-transform focus:outline-none">
                   {hasValidImage ? (
                     <div className="w-10 h-10 rounded-full border-2 border-[#df6742] overflow-hidden relative block">
-                      <img alt="User Avatar" src={user.image} className="object-cover w-full h-full" />
+                      <img alt="User Avatar" src={user.image} onError={() => setImageError(true)} className="object-cover w-full h-full" />
                     </div>
                   ) : (
                     <UserInitials name={user.name} />
@@ -312,16 +323,20 @@ const Navbar = () => {
                 </button>
 
                 {isAvatarOpen && (
-                  <div className="absolute right-0 top-full mt-2.5 w-72 bg-[#243239] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden明确">
+                  <div className="absolute right-0 top-full mt-2.5 w-72 bg-[#243239] border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden">
                     <div className="p-4 bg-[#1e2a30] border-b border-white/10">
                       <div className="flex items-center gap-3.5 mb-3">
-                        {hasValidImage ? (
-                          <div className="w-12 h-12 rounded-full border-2 border-[#df6742] overflow-hidden relative block shrink-0 shadow-inner">
-                            <img alt="User Avatar" src={user.image} className="object-cover w-full h-full" />
-                          </div>
-                        ) : (
-                          <UserInitials name={user.name} size="w-12 h-12" textSize="text-lg" />
-                        )}
+                        <button onClick={navigateToProfile} className="cursor-pointer group focus:outline-none shrink-0 relative block">
+                          {hasValidImage ? (
+                            <div className="w-12 h-12 rounded-full border-2 border-[#df6742] overflow-hidden relative block shadow-inner group-hover:scale-105 transition-transform">
+                              <img alt="User Avatar" src={user.image} onError={() => setImageError(true)} className="object-cover w-full h-full" />
+                            </div>
+                          ) : (
+                            <div className="group-hover:scale-105 transition-transform">
+                              <UserInitials name={user.name} size="w-12 h-12" textSize="text-lg" />
+                            </div>
+                          )}
+                        </button>
                         <div className="min-w-0 flex-1">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider text-white mb-1 ${getRoleBadgeColor(user.role)}`}>
                             {user.role}
@@ -369,7 +384,7 @@ const Navbar = () => {
         <div className="absolute top-16 left-0 w-full md:hidden bg-[#243239] border-t border-white/10 shadow-xl z-50 max-h-[calc(100vh-64px)] overflow-y-auto">
           <div className="px-6 pt-5 pb-6 space-y-3 flex flex-col items-center justify-center text-center">
             
-            {/* Mobile Search Input WITH LIVE SUGGESTION (FIXED ✨) */}
+            {/* Mobile Search Input */}
             <div className="w-full max-w-sm mb-2 relative" ref={mobileSearchRef}>
               <form onSubmit={handleSearchSubmit} className="w-full">
                 <div className="flex items-center border border-white/15 bg-white/8 rounded-full px-4 py-2 gap-2">
@@ -389,7 +404,6 @@ const Navbar = () => {
                 </div>
               </form>
               
-              {/* Mobile Live Dropdown Window */}
               {searchQuery.trim() !== "" && (
                 <SearchSuggestions closeSearch={() => { setIsMobileMenuOpen(false); setSearchQuery(""); }} />
               )}
@@ -442,21 +456,22 @@ const Navbar = () => {
               </div>
             )}
 
-            {/* Mobile Authentication & User Profile (FIXED ИMAGE ✨) */}
+            {/* Mobile Authentication & User Profile */}
             <div className="pt-4 border-t border-white/10 mt-2 w-full max-w-sm">
               {isPending ? (
                 <div className="h-20 bg-white/5 animate-pulse rounded-2xl w-full" />
               ) : user ? (
                 <div className="bg-[#1e2a30] rounded-2xl p-4 border border-white/5 flex flex-col items-center justify-center gap-3.5 w-full">
                   <div className="flex flex-col items-center text-center gap-2">
-                    {hasValidImage ? (
-               
-                      <div className="w-14 h-14 rounded-full border-2 border-[#df6742] overflow-hidden block shrink-0 shadow-md">
-                        <img src={user.image} alt="Profile" className="object-cover w-full h-full" />
-                      </div>
-                    ) : (
-                      <UserInitials name={user.name} size="w-12 h-12" textSize="text-lg" />
-                    )}
+                    <button onClick={navigateToProfile} className="cursor-pointer focus:outline-none shrink-0 relative block">
+                      {hasValidImage ? (
+                        <div className="w-14 h-14 rounded-full border-2 border-[#df6742] overflow-hidden block shrink-0 shadow-md">
+                          <img src={user.image} alt="Profile" onError={() => setImageError(true)} className="object-cover w-full h-full" />
+                        </div>
+                      ) : (
+                        <UserInitials name={user.name} size="w-12 h-12" textSize="text-lg" />
+                      )}
+                    </button>
                     <div className="flex flex-col items-center mt-1">
                       <span className={`inline-block text-[9px] font-bold uppercase tracking-wider text-white px-2 py-0.5 rounded-full mb-2 ${getRoleBadgeColor(user.role)}`}>
                         {user.role}
