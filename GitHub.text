@@ -8,5 +8,5 @@ git push -u origin main
 
 
 git add .
-git commit -m "feat(stripe): complete full-stack integration of stripe hosted checkout and dynamic order sync"
+git commit -m "Update dashboard layout & Create Admin Dashboard & Fixed bugs in profile page"
 git push

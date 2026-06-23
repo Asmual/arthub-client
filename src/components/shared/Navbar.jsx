@@ -43,7 +43,7 @@ const getDashboardLinks = (role) => {
   if (role === "buyer" || role === "user") {
     return [
       ...commonLinks,
-      { href: "/dashboard/user", label: "Purchase History", icon: ShoppingBag },
+      { href: "/dashboard/user/purchase-history", label: "Purchase History", icon: ShoppingBag },
       { href: "/dashboard/user/bought-artworks", label: "Bought Artworks", icon: ImageIcon },
       { href: "/dashboard/user/profile", label: "Profile Management", icon: User },
     ];
@@ -51,7 +51,7 @@ const getDashboardLinks = (role) => {
   if (role === "artist") {
     return [
       ...commonLinks,
-      { href: "/dashboard/artist", label: "Manage Artworks", icon: Palette },
+      { href: "/dashboard/artist/manage-artworks", label: "Manage Artworks", icon: Palette },
       { href: "/dashboard/artist/add-art", label: "Add Artwork", icon: PlusSquare },
       { href: "/dashboard/artist/sales", label: "Sales History", icon: TrendingUp },
       { href: "/dashboard/artist/profile", label: "Profile Management", icon: User },
@@ -60,10 +60,11 @@ const getDashboardLinks = (role) => {
   if (role === "admin") {
     return [
       ...commonLinks,
-      { href: "/dashboard/admin", label: "Manage Users", icon: Users },
+      { href: "/dashboard/admin/users", label: "Manage Users", icon: Users },
       { href: "/dashboard/admin/artworks", label: "Manage All Artworks", icon: Shield },
       { href: "/dashboard/admin/transactions", label: "View All Transactions", icon: CreditCard },
       { href: "/dashboard/admin/charts", label: "Charts & Analytics", icon: BarChart2 },
+      { href: "/dashboard/admin/profile", label: "Profile Management", icon: User },
     ];
   }
   return [];

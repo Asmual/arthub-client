@@ -56,14 +56,16 @@ const TopArtists = () => {
   useEffect(() => {
     const fetchTopArtists = async () => {
       try {
-        // Structured fallbacks for cross-origin compliance
+        setError(null);
+        setLoading(true);
+        
         const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server.onrender.com").replace(/\/$/, "");
         const res = await fetch(`${base}/api/artists/top`);
-        if (!res.ok) throw new Error("Failed to fetch top creators.");
+        if (!res.ok) throw new Error("Failed to resolve dynamic top creators catalog.");
         
         const data = await res.json();
         
-        // Content validation and analytics-based ranking
+        // Data processing and verification logic
         const cleanData = Array.isArray(data) 
           ? data
               .filter((user) => user && user.role === "artist")
@@ -73,8 +75,8 @@ const TopArtists = () => {
 
         setArtists(cleanData);
       } catch (err) {
-        console.error("Frontend Fetch Error:", err);
-        setError("Could not load artists.");
+        console.error("Top Creators Fetch Error:", err);
+        setError("Could not retrieve top creators portfolio.");
       } finally {
         setLoading(false);
       }
@@ -89,6 +91,7 @@ const TopArtists = () => {
     >
       <div className="max-w-5xl mx-auto">
 
+        {/* Header Elements */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 bg-[#df6742]/12 border border-[#df6742]/28 text-[#df6742] px-4 py-1.5 rounded-full text-[11px] font-bold tracking-[1.2px] mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-[#df6742]" />
@@ -102,10 +105,12 @@ const TopArtists = () => {
           </p>
         </div>
 
+        {/* Operational Error Visuals */}
         {error && (
           <p className="text-center text-white/35 text-sm py-10">{error}</p>
         )}
 
+        {/* Visual Metrics Engine */}
         {!error && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {loading
@@ -123,11 +128,12 @@ const TopArtists = () => {
                       {i + 1}
                     </div>
 
+                    {/* Image and Placeholder Wrapper */}
                     <div className="relative mb-4">
                       {artist.image ? (
                         <img
                           src={artist.image}
-                          alt={artist.name || "Artist"}
+                          alt={artist.name || "Artist Profile"}
                           className={`w-21 h-21 rounded-full object-cover border-[3px] ${AVATAR_BORDER[i]}`}
                           onError={(e) => {
                             e.target.onerror = null; 
@@ -159,6 +165,7 @@ const TopArtists = () => {
 
                     <div className="w-10 h-px bg-white/10 mb-5" />
 
+                    {/* Statistical Counts */}
                     <div className="flex gap-10 justify-center">
                       <div className="flex flex-col items-center gap-1">
                         <span className={`text-[19px] font-bold ${STAT_COLOR[i]}`}>
@@ -183,7 +190,8 @@ const TopArtists = () => {
           </div>
         )}
 
-        {!loading && !error && (
+        {/* Call To Action Redirect */}
+        {!loading && !error && artists.length > 0 && (
           <div className="text-center mt-10">
             <NextLink
               href="/browse?type=artists"

@@ -27,7 +27,7 @@ export default function Sidebar() {
 
   const isActive = (path) => pathname === path;
 
-  // Navigation link component for consistency
+  // Reusable navigation link element
   const SidebarLink = ({ href, label, icon: Icon }) => (
     <Link
       href={href}
@@ -44,7 +44,7 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 bg-[#243239] border-r border-white/5 min-h-screen p-4 flex-col gap-6 shrink-0 hidden md:flex">
-      {/* Sidebar Header */}
+      {/* Identity Profile Section */}
       <div className="px-4 py-2 border-b border-white/5">
         <h2 className="text-lg font-bold text-white tracking-tight">
           Control Panel
@@ -54,11 +54,11 @@ export default function Sidebar() {
         </p>
       </div>
 
-      {/* Navigation Groups */}
+      {/* Dynamic Role-Based Navigation Architecture */}
       <div className="flex flex-col gap-5 flex-1 overflow-y-auto pr-1">
         
-        {/* User / Buyer Section */}
-        {(role === "user" || role === "buyer" || role === "admin") && (
+        {/* Buyer View Control (Strictly hidden from Admin role) */}
+        {(role === "user" || role === "buyer") && (
           <div className="flex flex-col gap-1.5">
             <p className="px-4 text-[10px] font-bold uppercase tracking-wider text-white/30">Buyer Dashboard</p>
             <SidebarLink href="/dashboard/user" label="Overview" icon={LayoutDashboard} />
@@ -68,8 +68,8 @@ export default function Sidebar() {
           </div>
         )}
 
-        {/* Artist Section */}
-        {(role === "artist" || role === "admin") && (
+        {/* Artist View Control (Strictly hidden from Admin role) */}
+        {role === "artist" && (
           <div className="flex flex-col gap-1.5">
             <p className="px-4 text-[10px] font-bold uppercase tracking-wider text-white/30">Artist Dashboard</p>
             <SidebarLink href="/dashboard/artist" label="Overview" icon={LayoutDashboard} />
@@ -80,15 +80,22 @@ export default function Sidebar() {
           </div>
         )}
 
-        {/* Admin Section */}
+        {/* Admin Comprehensive Isolation Section */}
         {role === "admin" && (
           <div className="flex flex-col gap-1.5">
             <p className="px-4 text-[10px] font-bold uppercase tracking-wider text-white/30">Admin Dashboard</p>
             <SidebarLink href="/dashboard/admin" label="Overview" icon={LayoutDashboard} />
+            
             <SidebarLink href="/dashboard/admin/users" label="Manage Users" icon={Users} />
-            <SidebarLink href="/dashboard/admin/artworks" label="All Artworks" icon={Shield} />
-            <SidebarLink href="/dashboard/admin/transactions" label="Transactions" icon={CreditCard} />
-            <SidebarLink href="/dashboard/admin/charts" label="Analytics" icon={BarChart2} />
+            {/* Updated label to Manage All Artworks */}
+            <SidebarLink href="/dashboard/admin/artworks" label="Manage All Artworks" icon={Shield} />
+            {/* Updated label to All Transactions */}
+            <SidebarLink href="/dashboard/admin/transactions" label="All Transactions" icon={CreditCard} />
+            <SidebarLink href="/dashboard/admin/analytics" label="Analytics Overview" icon={TrendingUp} />
+            {/* Added Charts right after Overview based on assignment requirements */}
+            <SidebarLink href="/dashboard/admin/charts" label="Charts" icon={BarChart2} />
+            {/* Updated label to Profile Management */}
+            <SidebarLink href="/dashboard/admin/profile" label="Profile Management" icon={User} />
           </div>
         )}
 

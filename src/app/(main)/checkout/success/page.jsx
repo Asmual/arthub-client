@@ -9,6 +9,7 @@ export default function SuccessPage() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState("processing");
   const sessionId = searchParams.get("session_id");
+  const artworkId = searchParams.get("artwork_id"); // Extracts dynamic artwork identification flag
 
   useEffect(() => {
     if (!sessionId) return;
@@ -17,7 +18,6 @@ export default function SuccessPage() {
       try {
         const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
         
-        // Call backend API to mark sold and increment sales count
         const res = await fetch(`${base}/api/payments/verify-success-order`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -45,7 +45,6 @@ export default function SuccessPage() {
           <>
             <Loader2 className="w-12 h-12 text-[#df6742] animate-spin mx-auto" />
             <h1 className="text-xl font-bold">Securing Your Database Order...</h1>
-            <p className="text-xs text-white/50">Updating artist records and top charts, please do not close this window.</p>
           </>
         )}
 
@@ -53,9 +52,14 @@ export default function SuccessPage() {
           <>
             <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
             <h1 className="text-2xl font-black text-emerald-400">🎉 Payment Verified!</h1>
-            <p className="text-xs text-white/60">The artwork is now yours. Artist profile metrics and global sales charts have been updated instantly.</p>
-            <Link href="/" className="inline-block mt-4 bg-[#df6742] px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider">
-              Back to Marketplace
+            <p className="text-xs text-white/60">The artwork is now yours. You can now unlock review and comments section inside the item display profile immediately.</p>
+            
+            {/* Redirects user specifically back to the bought item detail workspace */}
+            <Link 
+              href={artworkId ? `/artwork/${artworkId}` : "/"} 
+              className="inline-block mt-4 bg-[#df6742] hover:bg-[#c5522f] px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors"
+            >
+              Back to Artwork Details
             </Link>
           </>
         )}
@@ -64,10 +68,7 @@ export default function SuccessPage() {
           <>
             <div className="text-red-500 text-4xl mx-auto">⚠️</div>
             <h1 className="text-xl font-bold text-red-400">Syncing Failed</h1>
-            <p className="text-xs text-white/50">Payment was authorized by Stripe but local database sync timed out. Please contact support.</p>
-            <Link href="/" className="inline-block mt-4 bg-white/10 px-6 py-3 rounded-xl text-xs font-bold">
-              Go Home
-            </Link>
+            <Link href="/" className="inline-block mt-4 bg-white/10 px-6 py-3 rounded-xl text-xs font-bold">Go Home</Link>
           </>
         )}
       </div>

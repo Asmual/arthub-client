@@ -1,0 +1,153 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { authClient } from "@/lib/auth-client";
+import { Loader2, Palette, ExternalLink, ArrowLeft, ImageOff } from "lucide-react";
+import Link from "next/link";
+
+export default function BoughtArtworksPage() {
+  const { data: session, isPending: authLoading } = authClient.useSession();
+  const user = session?.user;
+
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchBoughtArtworks = async () => {
+      try {
+        const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
+        
+        // Native MongoDB Aggregation থেকে ডেটা ফেচ করা হচ্ছে
+        const response = await fetch(`${base}/api/payments/history/${user.id}`);
+        const data = await response.json();
+        
+        if (Array.isArray(data)) {
+          setOrders(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch purchased artworks gallery:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBoughtArtworks();
+  }, [user?.id]);
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-2 text-white">
+        <Loader2 className="w-8 h-8 text-[#df6742] animate-spin" />
+        <p className="text-xs text-white/40">Loading your art collection...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 max-w-5xl mx-auto text-white">
+      
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-[#df6742]/10 rounded-xl border border-[#df6742]/20">
+            <Palette className="w-5 h-5 text-[#df6742]" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold">My Art Collection</h1>
+            <p className="text-xs text-white/40">Gallery of your successfully acquired masterpieces</p>
+          </div>
+        </div>
+        
+        <Link 
+          href="/dashboard/user" 
+          className="flex items-center gap-2 text-xs font-bold text-white/60 hover:text-[#df6742] bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl border border-white/5 transition-all w-fit"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        </Link>
+      </div>
+
+      {/* Artworks Grid */}
+      {orders.length === 0 ? (
+        <div className="text-center py-16 bg-[#243239] rounded-2xl border border-white/5 space-y-3 shadow-xl">
+          <Palette className="w-8 h-8 mx-auto text-white/20" />
+          <p className="text-sm font-medium text-white/60">Your Gallery is Empty</p>
+          <p className="text-xs text-white/40 max-w-xs mx-auto">You haven&apos;t collected any artwork yet. Visit the marketplace to fill your private collection.</p>
+          <Link href="/" className="inline-block mt-2 bg-[#df6742] text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-[#c55332] transition-colors shadow-md">
+            Explore Marketplace
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {orders.map((order) => {
+            const artwork = order.artworkDetails;
+            return (
+              <div 
+                key={order._id} 
+                className="bg-[#243239] rounded-2xl overflow-hidden border border-white/5 shadow-xl hover:border-white/10 transition-all flex flex-col group"
+              >
+                {/* Artwork Image Container */}
+                <div className="relative aspect-4/3 bg-black/20 w-full overflow-hidden border-b border-white/5">
+                  {artwork?.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img 
+                      src={artwork.image} 
+                      alt={artwork.title || "Purchased Artwork"} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-white/20 gap-2">
+                      <ImageOff className="w-8 h-8" />
+                      <span className="text-[10px] tracking-wider uppercase font-bold">No Image Available</span>
+                    </div>
+                  )}
+                  {/* Category Badge */}
+                  {artwork?.category && (
+                    <span className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border border-white/10">
+                      {artwork.category}
+                    </span>
+                  )}
+                </div>
+
+                {/* Content Details */}
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                  <div className="space-y-1.5">
+                    <h3 className="font-bold text-white text-base tracking-wide truncate">
+                      {artwork?.title || "Exclusive Masterpiece"}
+                    </h3>
+                    <p className="text-[11px] text-white/40 font-mono select-all truncate">
+                      Txn: {order.transactionId}
+                    </p>
+                  </div>
+
+                  {/* Pricing and Link Action */}
+                  <div className="flex items-center justify-between pt-3 border-t border-white/5">
+                    <div className="space-y-0.5">
+                      <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Price Paid</p>
+                      <p className="text-lg font-black text-emerald-400">
+                        ${order.price?.toFixed(2)}
+                      </p>
+                    </div>
+
+                    {artwork?._id ? (
+                      <Link 
+                        href={`/artwork/${artwork._id}`} 
+                        className="flex items-center gap-1.5 text-xs font-bold text-[#df6742] bg-[#df6742]/5 hover:bg-[#df6742]/10 border border-[#df6742]/10 px-3.5 py-2 rounded-xl transition-all group/btn"
+                      >
+                        View Art
+                        <ExternalLink className="w-3.5 h-3.5 group-hover/btn:translate-x-0.5 transition-transform" />
+                      </Link>
+                    ) : (
+                      <span className="text-[11px] font-medium text-white/30 italic">Item Details Removed</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

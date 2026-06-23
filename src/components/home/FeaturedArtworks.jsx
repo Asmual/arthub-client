@@ -26,17 +26,19 @@ const FeaturedArtworks = () => {
   useEffect(() => {
     const fetchFeaturedArtworks = async () => {
       try {
-        // Dynamic base URL fetching with clean production fallback
+        setError(null);
+        setLoading(true);
+        
         const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server.onrender.com").replace(/\/$/, "");
         const res = await fetch(`${base}/api/artworks/featured`);
         
-        if (!res.ok) throw new Error("Failed to fetch featured artworks.");
+        if (!res.ok) throw new Error("Server responded with an unstable status.");
         const data = await res.json();
         
         setArtworks(Array.isArray(data) ? data : []);
       } catch (err) {
-        console.error("Fetch Error:", err);
-        setError("Could not load featured masterpieces.");
+        console.error("Featured Artworks Fetch Error:", err);
+        setError("Could not load featured masterpieces. Please ensure backend services are active.");
       } finally {
         setLoading(false);
       }
@@ -48,6 +50,7 @@ const FeaturedArtworks = () => {
     <section className="bg-[#2a3942] py-20 px-6 border-t border-white/5">
       <div className="max-w-6xl mx-auto">
         
+        {/* Section Header */}
         <div className="flex flex-col items-center text-center mb-16 max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-[#243239]/10 border border-[#df6742]/30 text-[#df6742] px-4 py-1.5 rounded-full text-[11px] font-bold tracking-wider mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-[#df6742]" />
@@ -62,7 +65,7 @@ const FeaturedArtworks = () => {
             Explore the most exclusive and recently updated masterpieces chosen by our curators.
           </p>
 
-          {!loading && !error && (
+          {!loading && !error && artworks.length > 0 && (
             <NextLink
               href="/browse"
               className="mt-6 text-[#df6742] hover:text-white text-sm font-bold transition-colors duration-200 flex items-center gap-1.5 group border-b border-[#df6742]/0 hover:border-white/10 pb-0.5"
@@ -75,11 +78,19 @@ const FeaturedArtworks = () => {
           )}
         </div>
 
+        {/* Dynamic Fallback States */}
         {error && (
-          <p className="text-center text-white/40 text-sm py-16">{error}</p>
+          <div className="text-center py-16 max-w-md mx-auto">
+            <p className="text-white/40 text-sm leading-relaxed">{error}</p>
+          </div>
         )}
 
-        {!error && (
+        {!loading && !error && artworks.length === 0 && (
+          <p className="text-center text-white/40 text-sm py-16">No recent artworks found.</p>
+        )}
+
+        {/* Main Artwork Grid Showcase */}
+        {!error && artworks.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {loading
               ? Array.from({ length: 6 }).map((_, i) => <ArtworkSkeleton key={i} />)
@@ -88,10 +99,11 @@ const FeaturedArtworks = () => {
                     key={artwork._id}
                     className="bg-[#1e262b] rounded-2xl overflow-hidden border border-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl flex flex-col justify-between"
                   >
+                    {/* Media Container */}
                     <div className="relative aspect-4/3 w-full overflow-hidden bg-black/10">
                       <img
                         src={artwork.image || artwork.imageUrl}
-                        alt={artwork.title}
+                        alt={artwork.title || "Artwork Masterpiece"}
                         className="w-full h-full object-cover"
                       />
                       
@@ -108,6 +120,7 @@ const FeaturedArtworks = () => {
                       </div>
                     </div>
 
+                    {/* Meta Metadata Content */}
                     <div className="p-6 flex flex-col grow justify-between">
                       <div>
                         <h3 className="text-xl font-bold text-white truncate mb-1">
@@ -134,10 +147,6 @@ const FeaturedArtworks = () => {
                   </div>
                 ))}
           </div>
-        )}
-
-        {!loading && !error && artworks.length === 0 && (
-          <p className="text-center text-white/40 text-sm py-16">No recent artworks found.</p>
         )}
 
       </div>

@@ -1,9 +1,9 @@
-/* eslint-disable @next/next/no-img-element */
 /* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useSession, authClient } from "@/lib/auth-client";
+import { authClient } from "@/lib/auth-client"; 
 import toast from "react-hot-toast";
 import { 
   User, 
@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 
 export default function ProfilePage() {
-  const { data: session, isPending } = useSession();
+
+  const { data: session, isPending } = authClient.useSession();
   const user = session?.user;
 
   const [name, setName] = useState("");
@@ -24,7 +25,7 @@ export default function ProfilePage() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Sync state with session data
+
   useEffect(() => {
     if (user) {
       setName(user.name || "");
@@ -32,7 +33,7 @@ export default function ProfilePage() {
     }
   }, [user]);
 
-  // Handle Image Upload to ImgBB
+
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -42,12 +43,11 @@ export default function ProfilePage() {
     formData.append("image", file);
 
     try {
-      // .env.local ফাইল থেকে ডাইনামিকালি URL এবং API Key রিড করা হচ্ছে
       const apiUrl = process.env.NEXT_PUBLIC_IMGBB_API_URL || "https://api.imgbb.com/1/upload";
       const apiKey = process.env.NEXT_PUBLIC_IMGBB_API_KEY;
 
       if (!apiKey) {
-        toast.error("ImgBB API Key missing in .env file");
+        toast.error("ImgBB API Key missing in environment file");
         setIsUploading(false);
         return;
       }
@@ -60,7 +60,7 @@ export default function ProfilePage() {
       const data = await response.json();
       if (data.success) {
         setImage(data.data.url);
-        toast.success("Image uploaded to cloud!");
+        toast.success("Image uploaded to cloud successfully!");
       } else {
         toast.error(data.error?.message || "Image upload failed");
       }
@@ -72,36 +72,53 @@ export default function ProfilePage() {
     }
   };
 
-  // Handle Profile Update via authClient
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     if (!name.trim()) return toast.error("Name cannot be empty");
 
     setIsUpdating(true);
     try {
-      // Using BetterAuth / authClient to update user profile
+      const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
+      
+      const dbResponse = await fetch(`${base}/api/users/update-profile`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user?.id, name, image }),
+      });
+
+      const dbData = await dbResponse.json();
+
+      if (!dbResponse.ok) {
+        throw new Error(dbData.error || "Failed to update native database logs");
+      }
+
       await authClient.updateUser({
         name: name,
         image: image,
       }, {
-        onSuccess: () => {
-          toast.success("Profile updated successfully!");
+        onSuccess: async () => {
+          toast.success("Profile records secured successfully!");
+          
+          if (typeof window !== "undefined") {
+            window.location.reload(); 
+          }
           setIsUpdating(false);
         },
         onError: (ctx) => {
-          toast.error(ctx.error.message || "Failed to update profile");
+          toast.error(ctx.error.message || "Failed client session refresh");
           setIsUpdating(false);
         }
       });
     } catch (error) {
-      toast.error("Something went wrong");
+      console.error(error);
+      toast.error(error.message || "Something went wrong during synchronization");
       setIsUpdating(false);
     }
   };
 
   if (isPending) {
     return (
-      <div className="flex items-center justify-center min-h-100">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="w-8 h-8 text-[#df6742] animate-spin" />
       </div>
     );
@@ -109,29 +126,29 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      {/* Header Section */}
+      {/* Header */}
       <div className="bg-[#243239] p-6 rounded-2xl border border-white/5 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Profile Management</h1>
-          <p className="text-white/40 text-sm mt-1">Update your personal information and profile picture.</p>
+          <p className="text-white/40 text-sm mt-1">Update your personal information and profile picture securely.</p>
         </div>
         <div className="hidden sm:block">
           <div className="px-3 py-1 bg-[#df6742]/10 border border-[#df6742]/20 rounded-full">
-            <span className="text-[#df6742] text-xs font-bold uppercase tracking-widest">{user?.role}</span>
+            <span className="text-[#df6742] text-xs font-bold uppercase tracking-widest">{user?.role || "user"}</span>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Avatar Upload Section */}
+        {/* Profile Avatar Sidebar */}
         <div className="lg:col-span-1 bg-[#243239] p-8 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center">
           <div className="relative group">
             <div className="w-32 h-32 rounded-full border-4 border-[#df6742] overflow-hidden bg-black/20 relative">
-              {isUploading ? (
+              {isUploading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
                   <RefreshCcw className="text-white animate-spin w-6 h-6" />
                 </div>
-              ) : null}
+              )}
               {image ? (
                 <img 
                   src={image} 
@@ -146,7 +163,6 @@ export default function ProfilePage() {
               )}
             </div>
             
-            {/* Upload Trigger */}
             <label className="absolute bottom-1 right-1 bg-[#df6742] p-2 rounded-full cursor-pointer hover:bg-[#c55332] transition-colors shadow-lg border-2 border-[#243239]">
               <Camera size={18} className="text-white" />
               <input 
@@ -154,7 +170,7 @@ export default function ProfilePage() {
                 className="hidden" 
                 accept="image/*" 
                 onChange={handleImageUpload}
-                disabled={isUploading}
+                disabled={isUploading || isUpdating}
               />
             </label>
           </div>
@@ -163,10 +179,9 @@ export default function ProfilePage() {
           <p className="text-white/40 text-xs truncate max-w-full">{user?.email}</p>
         </div>
 
-        {/* Right: Info Form Section */}
+        {/* Input Form */}
         <div className="lg:col-span-2 bg-[#243239] p-6 rounded-2xl border border-white/5">
           <form onSubmit={handleUpdateProfile} className="space-y-5">
-            {/* Name Field */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-white/40 uppercase tracking-wider ml-1">Full Name</label>
               <div className="relative">
@@ -181,7 +196,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Email Field (Disabled) */}
             <div className="space-y-2 opacity-60">
               <label className="text-xs font-bold text-white/40 uppercase tracking-wider ml-1">Email Address (Primary)</label>
               <div className="relative">
@@ -195,23 +209,17 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Verification Status */}
             <div className="flex items-center gap-2 px-4 py-3 bg-emerald-500/5 border border-emerald-500/10 rounded-xl">
               <ShieldCheck className="text-emerald-500" size={16} />
               <p className="text-[11px] text-emerald-500/80 font-medium">Your account is verified and secure.</p>
             </div>
 
-            {/* Action Button */}
             <button
               type="submit"
               disabled={isUpdating || isUploading}
               className="w-full bg-[#df6742] hover:bg-[#c55332] text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
             >
-              {isUpdating ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Save size={19} />
-              )}
+              {isUpdating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save size={19} />}
               {isUpdating ? "Saving Changes..." : "Update Profile"}
             </button>
           </form>
