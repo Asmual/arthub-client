@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -19,8 +20,15 @@ export default function BoughtArtworksPage() {
       try {
         const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
         
-        // Native MongoDB Aggregation থেকে ডেটা ফেচ করা হচ্ছে
         const response = await fetch(`${base}/api/payments/history/${user.id}`);
+        
+        // Safety handling if server responds with HTML error wrapper instead of JSON array
+        if (!response.ok) {
+          console.error(`Server responded with unsafe status code: ${response.status}`);
+          setLoading(false);
+          return;
+        }
+
         const data = await response.json();
         
         if (Array.isArray(data)) {
@@ -74,8 +82,8 @@ export default function BoughtArtworksPage() {
           <Palette className="w-8 h-8 mx-auto text-white/20" />
           <p className="text-sm font-medium text-white/60">Your Gallery is Empty</p>
           <p className="text-xs text-white/40 max-w-xs mx-auto">You haven&apos;t collected any artwork yet. Visit the marketplace to fill your private collection.</p>
-          <Link href="/" className="inline-block mt-2 bg-[#df6742] text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-[#c55332] transition-colors shadow-md">
-            Explore Marketplace
+          <Link href="/browse" className="inline-block mt-2 bg-[#df6742] text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-[#c55332] transition-colors shadow-md">
+            Explore Artworks
           </Link>
         </div>
       ) : (
@@ -90,7 +98,6 @@ export default function BoughtArtworksPage() {
                 {/* Artwork Image Container */}
                 <div className="relative aspect-4/3 bg-black/20 w-full overflow-hidden border-b border-white/5">
                   {artwork?.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img 
                       src={artwork.image} 
                       alt={artwork.title || "Purchased Artwork"} 
@@ -126,13 +133,13 @@ export default function BoughtArtworksPage() {
                     <div className="space-y-0.5">
                       <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Price Paid</p>
                       <p className="text-lg font-black text-emerald-400">
-                        ${order.price?.toFixed(2)}
+                        ${order.price ? Number(order.price).toFixed(2) : "0.00"}
                       </p>
                     </div>
 
                     {artwork?._id ? (
                       <Link 
-                        href={`/artwork/${artwork._id}`} 
+                        href={`/artworks/${artwork._id}`} 
                         className="flex items-center gap-1.5 text-xs font-bold text-[#df6742] bg-[#df6742]/5 hover:bg-[#df6742]/10 border border-[#df6742]/10 px-3.5 py-2 rounded-xl transition-all group/btn"
                       >
                         View Art

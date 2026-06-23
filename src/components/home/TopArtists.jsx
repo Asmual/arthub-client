@@ -2,7 +2,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import NextLink from "next/link";
+import Link from "next/link";
+import { FaStar } from "react-icons/fa";
 
 const RANK_BADGE = {
   0: "bg-[#df6742] text-white",
@@ -10,41 +11,34 @@ const RANK_BADGE = {
   2: "bg-white/[0.07] text-white/45",
 };
 
-const AVATAR_BORDER = {
-  0: "border-[#df6742]/55",
-  1: "border-[#7ecec4]/45",
-  2: "border-[#c9a0dc]/45",
-};
-
-const AVATAR_GRADIENT = [
+const AVATAR_GRADIENTS = [
   "from-[#e8a0b8] to-[#df6742]",
   "from-[#7ecec4] to-[#185FA5]",
   "from-[#c9a0dc] to-[#534AB7]",
 ];
 
-const STAT_COLOR = {
-  0: "text-[#df6742]",
-  1: "text-[#7ecec4]",
-  2: "text-[#c9a0dc]",
+// Helper function to format large stats counts safely
+const formatCount = (n = 0) => {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
 };
 
 const getInitials = (name = "") =>
   name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
+// Synchronized Skeleton Card matching the updated minimalist look
 const SkeletonCard = () => (
-  <div className="border border-white/8 bg-[#243239] rounded-[18px] p-7 flex flex-col items-center gap-4 animate-pulse">
-    <div className="w-21 h-21 rounded-full bg-white/10" />
-    <div className="h-4 w-28 bg-white/10 rounded-full" />
-    <div className="h-2.5 w-16 bg-white/7 rounded-full" />
-    <div className="w-10 h-px bg-white/10" />
-    <div className="flex gap-7">
+  <div className="bg-[#243239] border border-white/8 rounded-2xl p-6 flex flex-col items-center animate-pulse">
+    <div className="w-17 h-17 rounded-full bg-white/10 border-2 border-[#2f3f48] mb-4 mt-2" />
+    <div className="h-4 w-32 bg-white/10 rounded mb-2" />
+    <div className="h-3 w-20 bg-white/7 rounded mb-6" />
+    <div className="flex gap-3 mb-6 w-full">
       {[0, 1].map((i) => (
-        <div key={i} className="flex flex-col items-center gap-1.5">
-          <div className="h-5 w-10 bg-white/10 rounded" />
-          <div className="h-2 w-14 bg-white/6 rounded" />
-        </div>
+        <div key={i} className="flex-1 bg-white/5 rounded-xl h-14" />
       ))}
     </div>
+    <div className="h-10 w-full bg-white/5 rounded-xl" />
   </div>
 );
 
@@ -65,7 +59,6 @@ const TopArtists = () => {
         
         const data = await res.json();
         
-        // Data processing and verification logic
         const cleanData = Array.isArray(data) 
           ? data
               .filter((user) => user && user.role === "artist")
@@ -91,7 +84,7 @@ const TopArtists = () => {
     >
       <div className="max-w-5xl mx-auto">
 
-        {/* Header Elements */}
+        {/* Global Structural Header Blocks */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 bg-[#df6742]/12 border border-[#df6742]/28 text-[#df6742] px-4 py-1.5 rounded-full text-[11px] font-bold tracking-[1.2px] mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-[#df6742]" />
@@ -105,100 +98,101 @@ const TopArtists = () => {
           </p>
         </div>
 
-        {/* Operational Error Visuals */}
+        {/* Operational Error Handling Fallback */}
         {error && (
           <p className="text-center text-white/35 text-sm py-10">{error}</p>
         )}
 
-        {/* Visual Metrics Engine */}
+        {/* Core Layout Grid System */}
         {!error && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {loading
               ? [0, 1, 2].map((i) => <SkeletonCard key={i} />)
-              : artists.map((artist, i) => (
-                  <div
-                    key={artist._id?.toString() || artist._id || i}
-                    className={`relative border rounded-[18px] p-7 flex flex-col items-center text-center transition-all duration-300 hover:-translate-y-1 ${
-                      i === 0
-                        ? "bg-[#df6742]/6 border-[#df6742]/22"
-                        : "bg-white/4 border-white/8 hover:border-[#df6742]/28"
-                    }`}
-                  >
-                    <div className={`absolute top-3.5 left-3.5 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${RANK_BADGE[i]}`}>
-                      {i + 1}
-                    </div>
+              : artists.map((artist, i) => {
+                  const artistRating = artist.rating ? Number(artist.rating).toFixed(1) : "5.0";
+                  const gradient = AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length];
+                  
+                  // Unified fallback variable tracking MongoDB properties dynamically
+                  const dynamicImage = artist.image || artist.profileImage;
 
-                    {/* Image and Placeholder Wrapper */}
-                    <div className="relative mb-4">
-                      {artist.image ? (
-                        <img
-                          src={artist.image}
-                          alt={artist.name || "Artist Profile"}
-                          className={`w-21 h-21 rounded-full object-cover border-[3px] ${AVATAR_BORDER[i]}`}
-                          onError={(e) => {
-                            e.target.onerror = null; 
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div
-                          className={`w-21 h-21 rounded-full bg-linear-to-br border-[3px] flex items-center justify-center text-white text-2xl font-bold ${AVATAR_GRADIENT[i]} ${AVATAR_BORDER[i]}`}
-                        >
-                          {getInitials(artist.name)}
-                        </div>
-                      )}
-                      
-                      <div className="absolute bottom-0.5 right-0.5 w-5 h-5 bg-[#df6742] rounded-full border-[2.5px] border-[#2f3f48] flex items-center justify-center">
-                        <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                          <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                  return (
+                    <div
+                      key={artist._id?.toString() || artist._id || i}
+                      className="group bg-[#243239] border border-white/8 rounded-2xl p-6 transition-all duration-300 hover:border-[#df6742]/40 hover:-translate-y-1 flex flex-col items-center text-center relative"
+                    >
+                      {/* Left Side Absolute Placed Rank Badge Element */}
+                      <div className={`absolute top-4 left-4 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold z-10 ${RANK_BADGE[i]}`}>
+                        {i + 1}
                       </div>
-                    </div>
 
-                    <p className="text-[16px] font-bold text-white mb-1 tracking-wide">
-                      {artist.name || "Unknown Artist"}
-                    </p>
-
-                    <p className="text-[10px] text-white/38 tracking-[0.8px] uppercase mb-5">
-                      {artist.specialty || "Digital Artist"}
-                    </p>
-
-                    <div className="w-10 h-px bg-white/10 mb-5" />
-
-                    {/* Statistical Counts */}
-                    <div className="flex gap-10 justify-center">
-                      <div className="flex flex-col items-center gap-1">
-                        <span className={`text-[19px] font-bold ${STAT_COLOR[i]}`}>
-                          {artist.totalArtworks ?? 0}
-                        </span>
-                        <span className="text-[10px] text-white/32 uppercase tracking-[0.8px]">
-                          Artworks
-                        </span>
+                      {/* Right Side Absolute Placed Star Rating Badge Component */}
+                      <div className="absolute top-4 right-4 bg-[#2f3f48]/90 backdrop-blur-md border border-white/5 px-2 py-0.5 rounded-lg flex items-center gap-1 z-10">
+                        <FaStar className="text-amber-400 text-xs" />
+                        <span className="text-white text-[11px] font-bold">{artistRating}</span>
                       </div>
-                      <div className="flex flex-col items-center gap-1">
-                        <span className={`text-[19px] font-bold ${STAT_COLOR[i]}`}>
-                          {artist.totalSold ?? 0}
-                        </span>
-                        <span className="text-[10px] text-white/32 uppercase tracking-[0.8px]">
-                          Sales
-                        </span>
-                      </div>
-                    </div>
 
-                  </div>
-                ))}
+                      {/* Unified Frame Wrapper For Dynamic Profiles */}
+                      <div className="relative mb-4 mt-2">
+                        {dynamicImage ? (
+                          <img
+                            src={dynamicImage}
+                            alt={artist.name || "Artist Profile"}
+                            className="w-17 h-17 rounded-full object-cover border-[3px] border-[#2f3f48] ring-2 ring-[#df6742]/20 group-hover:ring-[#df6742]/50 transition-all duration-300"
+                          />
+                        ) : (
+                          <div className={`w-17 h-17 rounded-full bg-gradient-to-br border-[3px] border-[#2f3f48] ring-2 ring-[#df6742]/20 group-hover:ring-[#df6742]/50 flex items-center justify-center text-white text-xl font-bold transition-all duration-300 ${gradient}`}>
+                            {getInitials(artist.name)}
+                          </div>
+                        )}
+                        <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#243239]" />
+                      </div>
+
+                      {/* Identity Typography Structures */}
+                      <p className="text-[16px] font-bold text-white leading-tight mb-1 group-hover:text-[#df6742] transition-colors duration-200 w-full truncate px-1">
+                        {artist.name || "Unknown Artist"}
+                      </p>
+                      <p className="text-[11px] text-white/40 uppercase tracking-[1px] font-medium mb-5 w-full truncate px-1">
+                        {artist.specialty || "Visual Artist"}
+                      </p>
+
+                      {/* Metrics Performance Block */}
+                      <div className="grid grid-cols-2 gap-2 mb-6 w-full">
+                        {[
+                          { label: "Artworks", value: formatCount(artist.totalArtworks ?? artist.totalArts) },
+                          { label: "Sales", value: formatCount(artist.totalSold ?? artist.totalSales) },
+                        ].map(({ label, value }) => (
+                          <div
+                            key={label}
+                            className="bg-white/4 border border-white/5 rounded-xl py-2.5 flex flex-col items-center gap-0.5"
+                          >
+                            <span className="text-[15px] font-bold text-[#df6742]">{value}</span>
+                            <span className="text-[9px] text-white/30 uppercase tracking-[0.7px] font-semibold">{label}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Action Interface Route Link Component */}
+                      <Link
+                        href={`/artists-profile/${artist._id}`}
+                        className="mt-auto block w-full py-2.5 text-center text-xs font-bold tracking-wide bg-[#df6742] text-white hover:bg-[#ca5633] active:scale-[0.98] rounded-xl shadow-lg shadow-[#df6742]/10 transition-all duration-200"
+                      >
+                        View Profile
+                      </Link>
+                    </div>
+                  );
+                })}
           </div>
         )}
 
-        {/* Call To Action Redirect */}
+        {/* Redirection Call To Action Node Wrapper */}
         {!loading && !error && artists.length > 0 && (
-          <div className="text-center mt-10">
-            <NextLink
-              href="/browse?type=artists"
-              className="inline-block bg-[#df6742] hover:bg-[#c55332] text-white px-8 py-3 rounded-full text-[13px] font-bold tracking-wide transition-colors duration-200"
+          <div className="text-center mt-12">
+            <Link
+              href="/all-artists"
+              className="inline-block bg-[#df6742] hover:bg-[#ca5633] text-white px-8 py-3 rounded-full text-[13px] font-bold tracking-wide shadow-lg shadow-[#df6742]/10 transition-colors duration-200"
             >
               Explore All Artists
-            </NextLink>
+            </Link>
           </div>
         )}
 

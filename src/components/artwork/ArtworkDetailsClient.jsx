@@ -1,10 +1,10 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { authClient } from "@/lib/auth-client"; 
 import ReviewSection from "./ReviewSection";
-import { Loader2, Award, MapPin, Layers, X } from "lucide-react";
+import { Loader2, Award, MapPin, Layers, X, Paintbrush, ShoppingCart, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function ArtworkDetailsClient({ artwork }) {
@@ -13,7 +13,12 @@ export default function ArtworkDetailsClient({ artwork }) {
 
   const [isArtistModalOpen, setIsArtistModalOpen] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  
+  // States to hold the dynamic statistics of the artist
+  const [artistStats, setArtistStats] = useState({ totalArtworks: 0, publishedArtworks: 0, totalSales: 0 });
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
 
+  const artistId = artwork?.artist?._id || artwork?.userId?._id || artwork?.userId || artwork?.artistId;
   const artistRealImage = artwork?.artistImage || artwork?.artist?.image || artwork?.userId?.image || "/images/default-avatar.png";
   const artistRealName = artwork?.artistName || artwork?.artist?.name || artwork?.userId?.name || "Unknown Artist";
 
@@ -21,6 +26,28 @@ export default function ArtworkDetailsClient({ artwork }) {
   const isAdmin = user?.role === "admin";
   const isArtist = user?.role === "artist";
   const hasPaid = artwork.isSold && artwork.buyerId === user?.id; 
+
+  // Fetch artist stats dynamically when the profile modal opens
+  useEffect(() => {
+    if (isArtistModalOpen && artistId) {
+      const fetchArtistStats = async () => {
+        setIsLoadingStats(true);
+        try {
+          const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
+          const response = await fetch(`${base}/api/artists/${artistId}/stats`);
+          if (response.ok) {
+            const data = await response.json();
+            setArtistStats(data);
+          }
+        } catch (err) {
+          console.error("Failed to load artist stats safely:", err);
+        } finally {
+          setIsLoadingStats(false);
+        }
+      };
+      fetchArtistStats();
+    }
+  }, [isArtistModalOpen, artistId]);
 
   const formatBDDateTime = (dateString) => {
     if (!dateString) return "N/A";
@@ -79,7 +106,6 @@ export default function ArtworkDetailsClient({ artwork }) {
     }
   };
 
-  // Dynamically determines action state text inside render button context
   const getButtonText = () => {
     if (isRedirecting) return "Connecting Gateway...";
     if (artwork.isSold) return "Sold Out";
@@ -164,7 +190,6 @@ export default function ArtworkDetailsClient({ artwork }) {
           </div>
         </div>
 
-        {/* Dynamic Reviews Container Routing System */}
         <div className="border-t border-neutral-500/30 pt-8">
           {isPending ? (
             <div className="text-sm text-neutral-400 animate-pulse pl-1">Verifying authentication status...</div>
@@ -180,11 +205,13 @@ export default function ArtworkDetailsClient({ artwork }) {
         </div>
       </div>
 
+      {/* Artist Profile Modal Section */}
       {isArtistModalOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-[#1e262b] border border-white/10 rounded-2xl max-w-sm w-full p-6 text-center relative shadow-2xl space-y-6 overflow-hidden">
+          <div className="bg-[#1e262b] border border-white/10 rounded-2xl max-w-sm w-full p-6 text-center relative shadow-2xl space-y-5 overflow-hidden">
             <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#df6742] via-blue-500 to-[#df6742]"></div>
             <button onClick={() => setIsArtistModalOpen(false)} className="absolute top-4 right-4 text-white/40 hover:text-white bg-white/5 hover:bg-white/10 p-1.5 rounded-full"><X className="w-4 h-4" /></button>
+            
             <div className="space-y-3 pt-2">
               <div className="relative w-24 h-24 mx-auto">
                 <img src={artistRealImage} alt={artistRealName} className="w-24 h-24 rounded-full border-2 border-[#df6742] object-cover" />
@@ -194,24 +221,38 @@ export default function ArtworkDetailsClient({ artwork }) {
               </div>
               <div>
                 <h3 className="text-xl font-black text-white tracking-wide">{artistRealName}</h3>
+                
+                {/* Dynamically Styled Artist Type Badge / Base */}
+                <div className="mt-2 inline-flex items-center gap-1 bg-[#df6742]/10 border border-[#df6742]/30 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wider text-[#df6742] uppercase shadow-sm">
+                  <Paintbrush className="w-3 h-3" />
+                  <span>{artwork.category || "Fine Art"} Artist</span>
+                </div>
               </div>
             </div>
-            <p className="text-xs text-white/60 leading-relaxed px-2">A passionate visual engineer specializing in exquisite <span className="text-white font-semibold">{artwork.category || "Fine Art"}</span> masterpieces.</p>
-            <div className="grid grid-cols-2 gap-2 bg-black/20 p-3 rounded-xl border border-white/5">
-              <div className="border-r border-white/5">
-                <p className="text-[10px] uppercase text-white/40 font-bold">Focus</p>
-                <p className="text-xs font-extrabold text-white mt-1 truncate px-1">{artwork.category}</p>
+
+            {/* Dynamic Real-time Counter Stats Grid */}
+            {isLoadingStats ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-6 h-6 animate-spin text-[#df6742]" />
               </div>
-              <div>
-                <p className="text-[10px] uppercase text-white/40 font-bold">Origin</p>
-                <p className="text-xs font-extrabold text-white mt-1">Global Artist</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-2 bg-black/20 p-3 rounded-xl border border-white/5">
+                <div className="text-center border-r border-white/5">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-tight">Total Works</p>
+                  <p className="text-base font-black text-white mt-1">{artistStats.totalArtworks}</p>
+                </div>
+                <div className="text-center border-r border-white/5">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-tight">Published</p>
+                  <p className="text-base font-black text-emerald-400 mt-1">{artistStats.publishedArtworks}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] uppercase text-white/40 font-bold tracking-tight">Total Sales</p>
+                  <p className="text-base font-black text-[#df6742] mt-1">{artistStats.totalSales}</p>
+                </div>
               </div>
-            </div>
-            <div className="bg-[#df6742]/10 border border-[#df6742]/20 rounded-xl py-2.5">
-              <p className="text-[10px] text-[#df6742] uppercase font-black tracking-widest">Total Platform Sales</p>
-              <p className="text-lg font-black text-white mt-0.5">{artwork.artist?.salesCount || artwork.userId?.salesCount || 0} Sold Items</p>
-            </div>
-            <button onClick={() => setIsArtistModalOpen(false)} className="w-full bg-[#df6742] hover:bg-[#c5522f] text-white font-bold text-xs py-3 rounded-xl uppercase tracking-wider">Close Profile</button>
+            )}
+
+            <button onClick={() => setIsArtistModalOpen(false)} className="w-full bg-[#df6742] hover:bg-[#c5522f] text-white font-bold text-xs py-3 rounded-xl uppercase tracking-wider transition-colors duration-200">Close Profile</button>
           </div>
         </div>
       )}

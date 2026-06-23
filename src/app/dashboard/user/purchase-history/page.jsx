@@ -70,8 +70,8 @@ export default function PurchaseHistoryPage() {
         <div className="text-center py-12 bg-black/10 rounded-xl border border-white/5 space-y-2">
           <p className="text-sm font-medium text-white/60">No Artworks Purchased Yet</p>
           <p className="text-xs text-white/40 max-w-xs mx-auto">Explore our marketplace to find and collect beautiful masterpieces.</p>
-          <Link href="/" className="inline-block mt-2 bg-[#df6742] text-xs font-bold px-4 py-2 rounded-lg hover:bg-[#c55332] transition-colors">
-            Browse Gallery
+          <Link href="/browse" className="inline-block mt-2 bg-[#df6742] text-xs font-bold px-4 py-2 rounded-lg hover:bg-[#c55332] transition-colors">
+            Browse Artworks
           </Link>
         </div>
       ) : (

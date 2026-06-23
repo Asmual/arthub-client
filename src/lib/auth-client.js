@@ -1,8 +1,7 @@
 import { createAuthClient } from "better-auth/react";
 
-// Client-side hooks initialization with production fallback
 export const authClient = createAuthClient({
-    baseURL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL || "https://arthub-three.vercel.app",
+    baseURL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL || "http://localhost:3000",
 });
 
 export const { signIn, signUp, useSession, signOut } = authClient;
