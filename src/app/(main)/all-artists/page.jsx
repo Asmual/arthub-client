@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import AllArtists from '@/components/all-artists/AllArtists';
+import { Users, Compass } from 'lucide-react';
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server.onrender.com").replace(/\/$/, "");
 
@@ -10,83 +11,112 @@ export default function ExploreArtistsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Synchronize dynamic global artist database record retrieval from backend endpoint
   useEffect(() => {
+    let isMounted = true;
+
     const fetchArtists = async () => {
       try {
         setLoading(true);
         setError(null);
-        
+       
         const res = await fetch(`${API_BASE}/api/artists`);
-        if (!res.ok) throw new Error("Failed to fetch artists");
-        
+        if (!res.ok) throw new Error("Failed to fetch verified master creators.");
+       
         const data = await res.json();
-        setArtists(data);
+       
+        // Advanced structural normalization to ensure every single object passes its true ID field
+        const rawList = Array.isArray(data) 
+          ? data 
+          : (data.artists || data.data || []);
+
+        const validatedArtists = rawList
+          .filter(user => user && (user.role === "artist" || user.name || user._id))
+          .map(user => {
+            // Robust extraction matrix to grab the authentic identifier
+            const trueId = 
+              user._id?.toString() || 
+              user.id?.toString() || 
+              user.userId?._id?.toString() || 
+              user.userId?.toString();
+
+            return {
+              ...user,
+              // Overwriting core identity handles to eliminate undefined lookups on custom layouts
+              _id: trueId,
+              id: trueId
+            };
+          });
+       
+        if (isMounted) {
+          setArtists(validatedArtists);
+        }
       } catch (err) {
         console.error("Error fetching artists:", err);
-        setError("Could not load artists. Please try again.");
+        if (isMounted) {
+          setError("Could not synchronize dynamic artist community records.");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
-    
+   
     fetchArtists();
+
+  // eslint-disable- Next-line react-hooks/exhaustive-deps
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#2f3f48]">
-      {/* Clean Branding Header Section */}
-      <div className="border-b border-white/8 bg-[#243239]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 flex flex-col items-center text-center">
-
-          {/* Minimalist Centered Eyebrow Segment */}
-          <div className="inline-flex items-center gap-2 bg-[#df6742]/10 border border-[#df6742]/30 text-[#df6742] px-4 py-1.5 rounded-full text-[11px] font-bold tracking-[1.5px] mb-4">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#df6742]" />
-            DISCOVER CREATORS
-          </div>
-
-          {/* Split Colored Dynamic Title Block */}
-          <h1
-            className="text-3xl sm:text-4xl font-bold leading-tight"
-          >
-            <span className="text-white">Explore All</span>{" "}
-            <span className="text-[#df6742]">Artists</span>
-          </h1>
-          
-
-        </div>
-        {/* Dynamic Counter Box Rendered Directly Above The Grid Layout Area */}
-        {!loading && !error && artists.length > 0 && (
-          <div className="flex justify-end mb-2 pr-2">
-            <div className="bg-[#243239] border border-white/5 rounded-xl px-4 py-2">
-              <p className="text-xs font-semibold text-white/50 tracking-wide">
-                Total: <span className="text-[#df6742] font-bold text-sm">{artists.length}</span> {artists.length === 1 ? 'Artist' : 'Artists'}
-              </p>
+    <div className="min-h-screen bg-[#2f3f48] pb-16" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+     
+      <div className="border-b border-white/5 bg-[#243239] py-12 shadow-inner">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
+         
+          <div className="text-center md:text-left space-y-2">
+            <div className="inline-flex items-center gap-2 bg-[#df6742]/10 border border-[#df6742]/30 text-[#df6742] px-3 py-1 rounded-full text-[10px] font-bold tracking-[2px] uppercase">
+              <Compass className="w-3 h-3" /> Global Creators Network
             </div>
+            <h1 className="text-2xl sm:text-4xl font-black text-white tracking-wide">
+              Explore All <span className="text-[#df6742]">Artists</span>
+            </h1>
+            <p className="text-white/40 text-xs sm:text-sm max-w-xl">
+              Meet the professional visionary minds shaping contemporary global fine arts and digital masterpieces.
+            </p>
           </div>
-        )}
+
+          {!loading && !error && artists.length > 0 && (
+            <div className="bg-[#1e262b] border border-white/5 rounded-2xl px-6 py-4 flex items-center gap-3 shadow-md self-center">
+              <div className="p-2.5 bg-[#df6742]/10 rounded-xl text-[#df6742]">
+                <Users size={18} />
+              </div>
+              <div>
+                <p className="text-[10px] text-white/30 uppercase font-bold tracking-wider">Verified Registry</p>
+                <p className="text-sm font-black text-white">
+                  <span className="text-[#df6742] text-lg font-black">{artists.length}</span> Active Creators
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Main Core View Area */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-
-        
-
-        {/* Error Boundary Evaluation Interface */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {error ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-4">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 8v4M12 16h.01" />
+          <div className="flex flex-col items-center justify-center py-20 text-center bg-[#243239] rounded-2xl border border-white/5">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.5">
+                <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
               </svg>
             </div>
-            <p className="text-white/50 text-sm font-medium">{error}</p>
+            <p className="text-white/60 text-xs font-semibold">{error}</p>
           </div>
         ) : (
           <AllArtists artists={artists} loading={loading} />
         )}
-
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
-import { Loader2, ShoppingBag, ExternalLink } from "lucide-react";
+import { Loader2, Calendar, CreditCard, ShoppingCart, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
 export default function PurchaseHistoryPage() {
@@ -15,10 +15,9 @@ export default function PurchaseHistoryPage() {
   useEffect(() => {
     if (!user?.id) return;
 
-    const fetchPurchaseHistory = async () => {
+    const fetchOrderHistory = async () => {
       try {
         const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
-        // Native MongoDB Aggregation এন্ডপয়েন্ট কল করা হচ্ছে
         const response = await fetch(`${base}/api/payments/history/${user.id}`);
         const data = await response.json();
         
@@ -26,97 +25,77 @@ export default function PurchaseHistoryPage() {
           setOrders(data);
         }
       } catch (error) {
-        console.error("Failed to fetch purchase history:", error);
+        console.error("Failed to load full statement history:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPurchaseHistory();
+    fetchOrderHistory();
   }, [user?.id]);
-
-  const formatBDDate = (dateString) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString("en-US", {
-      timeZone: "Asia/Dhaka",
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-[50vh] flex flex-col items-center justify-center gap-2 text-white">
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-2 text-white">
         <Loader2 className="w-8 h-8 text-[#df6742] animate-spin" />
-        <p className="text-xs text-white/40">Loading your purchase history...</p>
+        <p className="text-xs text-white/40">Compiling financial history ledger...</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#243239] p-6 rounded-2xl border border-white/5 space-y-6 text-white">
-      <div className="flex items-center gap-3 border-b border-white/5 pb-4">
-        <div className="p-2.5 bg-[#df6742]/10 rounded-xl border border-[#df6742]/20">
-          <ShoppingBag className="w-5 h-5 text-[#df6742]" />
-        </div>
+    <div className="space-y-6 max-w-5xl mx-auto text-white">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
         <div>
           <h1 className="text-xl font-bold">Purchase History</h1>
-          <p className="text-xs text-white/40">View and track all your premium purchased artworks</p>
+          <p className="text-xs text-white/40">Secure history log of your completed financial checkouts</p>
         </div>
+        <Link 
+          href="/dashboard/user" 
+          className="flex items-center gap-2 text-xs font-bold text-white/60 hover:text-[#df6742] bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl border border-white/5 transition-all"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to Panel
+        </Link>
       </div>
 
       {orders.length === 0 ? (
-        <div className="text-center py-12 bg-black/10 rounded-xl border border-white/5 space-y-2">
-          <p className="text-sm font-medium text-white/60">No Artworks Purchased Yet</p>
-          <p className="text-xs text-white/40 max-w-xs mx-auto">Explore our marketplace to find and collect beautiful masterpieces.</p>
-          <Link href="/browse" className="inline-block mt-2 bg-[#df6742] text-xs font-bold px-4 py-2 rounded-lg hover:bg-[#c55332] transition-colors">
-            Browse Artworks
-          </Link>
+        <div className="text-center py-16 bg-[#243239] rounded-2xl border border-white/5 space-y-2">
+          <ShoppingCart className="w-8 h-8 mx-auto text-white/20" />
+          <p className="text-sm font-medium text-white/60">No transaction logs available</p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-white/5 bg-black/10">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="bg-black/20 text-white/40 text-xs font-bold uppercase tracking-wider border-b border-white/5">
-                <th className="p-4">Artwork Title</th>
-                <th className="p-4">Transaction ID</th>
-                <th className="p-4">Price</th>
-                <th className="p-4">Purchase Date</th>
-                <th className="p-4 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {orders.map((order) => (
-                <tr key={order._id} className="hover:bg-white/5 transition-colors">
-                  <td className="p-4 font-semibold text-white/90">
-                    <div className="flex items-center gap-2">
-                      <span>{order.artworkDetails?.title || "Exclusive Masterpiece"}</span>
-                      {order.artworkDetails?._id && (
-                        <Link href={`/artwork/${order.artworkDetails._id}`} className="text-white/40 hover:text-[#df6742] transition-colors">
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </Link>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-4 text-xs font-mono text-white/40 select-all">
-                    {order.transactionId}
-                  </td>
-                  <td className="p-4 font-bold text-emerald-400">
-                    ${order.price?.toFixed(2)}
-                  </td>
-                  <td className="p-4 text-xs text-white/60">
-                    {formatBDDate(order.createdAt)}
-                  </td>
-                  <td className="p-4 text-center">
-                    <span className="inline-block text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      {order.status || "paid"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-3">
+          {orders.map((order) => (
+            <div 
+              key={order._id}
+              className="bg-[#243239] border border-white/5 p-4 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-white/10 transition-all shadow-md"
+            >
+              <div className="space-y-1.5 min-w-0 flex-1">
+                <h3 className="font-bold text-sm text-white truncate">
+                  {order.artworkDetails?.title || "ArtHub Limited Asset Canvas"}
+                </h3>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-white/40 font-mono">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3 text-white/20" /> 
+                    {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "Recent"}
+                  </span>
+                  <span className="select-all">Txn ID: {order.transactionId}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between md:justify-end w-full md:w-auto gap-6 border-t md:border-t-0 border-white/5 pt-3 md:pt-0">
+                <div className="text-left md:text-right">
+                  <p className="text-[10px] font-bold text-white/30 uppercase tracking-wider">Amount Paid</p>
+                  <p className="text-base font-black text-emerald-400 font-mono">
+                    ${order.price ? Number(order.price).toFixed(2) : "0.00"}
+                  </p>
+                </div>
+                <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] uppercase tracking-wider font-bold rounded-lg">
+                  {order.status || "paid"}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

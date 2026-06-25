@@ -17,17 +17,17 @@ const AVATAR_GRADIENTS = [
   "from-[#c9a0dc] to-[#534AB7]",
 ];
 
-// Helper function to format large stats counts safely
 const formatCount = (n = 0) => {
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return String(n);
 };
 
-const getInitials = (name = "") =>
-  name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+const getInitials = (name = "") => {
+  if (!name) return "AA";
+  return name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+};
 
-// Synchronized Skeleton Card matching the updated minimalist look
 const SkeletonCard = () => (
   <div className="bg-[#243239] border border-white/8 rounded-2xl p-6 flex flex-col items-center animate-pulse">
     <div className="w-17 h-17 rounded-full bg-white/10 border-2 border-[#2f3f48] mb-4 mt-2" />
@@ -48,6 +48,7 @@ const TopArtists = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchTopArtists = async () => {
       try {
         setError(null);
@@ -66,25 +67,30 @@ const TopArtists = () => {
               .slice(0, 3)
           : [];
 
-        setArtists(cleanData);
+        if (isMounted) {
+          setArtists(cleanData);
+        }
       } catch (err) {
         console.error("Top Creators Fetch Error:", err);
-        setError("Could not retrieve top creators portfolio.");
+        if (isMounted) {
+          setError("Could not retrieve top creators portfolio.");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
+
     fetchTopArtists();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
-    <section
-      className="bg-[#2f3f48] py-16 px-6"
-      style={{ fontFamily: "'Montserrat', sans-serif" }}
-    >
+    <section className="bg-[#2f3f48] py-16 px-6" style={{ fontFamily: "'Montserrat', sans-serif" }}>
       <div className="max-w-5xl mx-auto">
-
-        {/* Global Structural Header Blocks */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 bg-[#df6742]/12 border border-[#df6742]/28 text-[#df6742] px-4 py-1.5 rounded-full text-[11px] font-bold tracking-[1.2px] mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-[#df6742]" />
@@ -98,12 +104,8 @@ const TopArtists = () => {
           </p>
         </div>
 
-        {/* Operational Error Handling Fallback */}
-        {error && (
-          <p className="text-center text-white/35 text-sm py-10">{error}</p>
-        )}
+        {error && <p className="text-center text-white/35 text-sm py-10">{error}</p>}
 
-        {/* Core Layout Grid System */}
         {!error && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {loading
@@ -111,27 +113,23 @@ const TopArtists = () => {
               : artists.map((artist, i) => {
                   const artistRating = artist.rating ? Number(artist.rating).toFixed(1) : "5.0";
                   const gradient = AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length];
-                  
-                  // Unified fallback variable tracking MongoDB properties dynamically
                   const dynamicImage = artist.image || artist.profileImage;
+                  const artistId = artist._id?.toString() || artist._id || i;
 
                   return (
                     <div
-                      key={artist._id?.toString() || artist._id || i}
+                      key={artistId}
                       className="group bg-[#243239] border border-white/8 rounded-2xl p-6 transition-all duration-300 hover:border-[#df6742]/40 hover:-translate-y-1 flex flex-col items-center text-center relative"
                     >
-                      {/* Left Side Absolute Placed Rank Badge Element */}
-                      <div className={`absolute top-4 left-4 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold z-10 ${RANK_BADGE[i]}`}>
+                      <div className={`absolute top-4 left-4 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold z-10 ${RANK_BADGE[i] || "bg-white/10"}`}>
                         {i + 1}
                       </div>
 
-                      {/* Right Side Absolute Placed Star Rating Badge Component */}
                       <div className="absolute top-4 right-4 bg-[#2f3f48]/90 backdrop-blur-md border border-white/5 px-2 py-0.5 rounded-lg flex items-center gap-1 z-10">
                         <FaStar className="text-amber-400 text-xs" />
                         <span className="text-white text-[11px] font-bold">{artistRating}</span>
                       </div>
 
-                      {/* Unified Frame Wrapper For Dynamic Profiles */}
                       <div className="relative mb-4 mt-2">
                         {dynamicImage ? (
                           <img
@@ -140,14 +138,13 @@ const TopArtists = () => {
                             className="w-17 h-17 rounded-full object-cover border-[3px] border-[#2f3f48] ring-2 ring-[#df6742]/20 group-hover:ring-[#df6742]/50 transition-all duration-300"
                           />
                         ) : (
-                          <div className={`w-17 h-17 rounded-full bg-gradient-to-br border-[3px] border-[#2f3f48] ring-2 ring-[#df6742]/20 group-hover:ring-[#df6742]/50 flex items-center justify-center text-white text-xl font-bold transition-all duration-300 ${gradient}`}>
+                          <div className={`w-17 h-17 rounded-full bg-linear-to-br border-[3px] border-[#2f3f48] ring-2 ring-[#df6742]/20 group-hover:ring-[#df6742]/50 flex items-center justify-center text-white text-xl font-bold transition-all duration-300 ${gradient}`}>
                             {getInitials(artist.name)}
                           </div>
                         )}
                         <span className="absolute bottom-0.5 right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-[#243239]" />
                       </div>
 
-                      {/* Identity Typography Structures */}
                       <p className="text-[16px] font-bold text-white leading-tight mb-1 group-hover:text-[#df6742] transition-colors duration-200 w-full truncate px-1">
                         {artist.name || "Unknown Artist"}
                       </p>
@@ -155,25 +152,20 @@ const TopArtists = () => {
                         {artist.specialty || "Visual Artist"}
                       </p>
 
-                      {/* Metrics Performance Block */}
                       <div className="grid grid-cols-2 gap-2 mb-6 w-full">
                         {[
                           { label: "Artworks", value: formatCount(artist.totalArtworks ?? artist.totalArts) },
                           { label: "Sales", value: formatCount(artist.totalSold ?? artist.totalSales) },
                         ].map(({ label, value }) => (
-                          <div
-                            key={label}
-                            className="bg-white/4 border border-white/5 rounded-xl py-2.5 flex flex-col items-center gap-0.5"
-                          >
+                          <div key={label} className="bg-white/4 border border-white/5 rounded-xl py-2.5 flex flex-col items-center gap-0.5">
                             <span className="text-[15px] font-bold text-[#df6742]">{value}</span>
                             <span className="text-[9px] text-white/30 uppercase tracking-[0.7px] font-semibold">{label}</span>
                           </div>
                         ))}
                       </div>
 
-                      {/* Action Interface Route Link Component */}
                       <Link
-                        href={`/artists-profile/${artist._id}`}
+                        href={`/artists-profile/${artistId}`}
                         className="mt-auto block w-full py-2.5 text-center text-xs font-bold tracking-wide bg-[#df6742] text-white hover:bg-[#ca5633] active:scale-[0.98] rounded-xl shadow-lg shadow-[#df6742]/10 transition-all duration-200"
                       >
                         View Profile
@@ -184,7 +176,6 @@ const TopArtists = () => {
           </div>
         )}
 
-        {/* Redirection Call To Action Node Wrapper */}
         {!loading && !error && artists.length > 0 && (
           <div className="text-center mt-12">
             <Link
@@ -195,7 +186,6 @@ const TopArtists = () => {
             </Link>
           </div>
         )}
-
       </div>
     </section>
   );

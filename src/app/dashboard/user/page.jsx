@@ -27,8 +27,12 @@ export default function UserDashboardLanding() {
       try {
         const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
         const response = await fetch(`${base}/api/payments/history/${user.id}`);
-        const data = await response.json();
         
+        if (!response.ok) {
+          throw new Error("Failed to sync client transaction records");
+        }
+        
+        const data = await response.json();
         if (Array.isArray(data)) {
           setRecentOrders(data.slice(0, 3));
         }
@@ -53,7 +57,7 @@ export default function UserDashboardLanding() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto text-white">
-      
+      {/* Welcome Banner */}
       <div className="bg-[#243239] p-6 sm:p-8 rounded-2xl border border-white/5 relative overflow-hidden shadow-xl">
         <div className="absolute -right-12 -top-12 w-48 h-48 bg-[#df6742]/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="relative z-10 space-y-2">
@@ -71,15 +75,13 @@ export default function UserDashboardLanding() {
         </div>
       </div>
 
-
+      {/* Analytics Counter Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        
-
         <div className="bg-[#243239] p-5 rounded-xl border border-white/5 flex items-center justify-between group hover:border-white/10 transition-all">
           <div className="space-y-1">
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Total Orders</p>
             <h3 className="text-2xl font-black text-white">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin text-neutral-500" /> : recentOrders.length}
+              {loading ? <Loader2 className="w-5 h-5 animate-spin text-[#df6742]" /> : recentOrders.length}
             </h3>
           </div>
           <div className="p-3 bg-[#df6742]/10 rounded-xl border border-[#df6742]/20">
@@ -99,7 +101,6 @@ export default function UserDashboardLanding() {
           </div>
         </div>
 
-
         <div className="bg-[#243239] p-5 rounded-xl border border-white/5 flex items-center justify-between hover:border-white/10 transition-all">
           <div className="space-y-1">
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Primary Gateway</p>
@@ -111,13 +112,11 @@ export default function UserDashboardLanding() {
             <CreditCard className="w-5 h-5 text-blue-400" />
           </div>
         </div>
-
       </div>
 
-
+      {/* Main Split Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-
+        {/* Navigation Panel */}
         <div className="lg:col-span-1 bg-[#243239] p-5 rounded-xl border border-white/5 space-y-4 h-fit">
           <div>
             <h3 className="text-sm font-bold text-white uppercase tracking-wider">Quick Actions</h3>
@@ -125,34 +124,40 @@ export default function UserDashboardLanding() {
           </div>
           
           <div className="space-y-2 pt-2">
-
             <Link 
-              href="/dashboard/purchase-history" 
+              href="/dashboard/user/purchase-history" 
               className="flex items-center justify-between p-3 bg-black/10 hover:bg-black/20 rounded-xl border border-white/5 transition-all group text-sm"
             >
               <span className="text-white/80 group-hover:text-[#df6742] transition-colors">Purchase History</span>
               <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-[#df6742] group-hover:translate-x-1 transition-all" />
             </Link>
 
+            <Link 
+              href="/dashboard/user/bought-artworks" 
+              className="flex items-center justify-between p-3 bg-black/10 hover:bg-black/20 rounded-xl border border-white/5 transition-all group text-sm"
+            >
+              <span className="text-white/80 group-hover:text-[#df6742] transition-colors">My Art Collection</span>
+              <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-[#df6742] group-hover:translate-x-1 transition-all" />
+            </Link>
 
             <Link 
               href="/dashboard/user/profile" 
               className="flex items-center justify-between p-3 bg-black/10 hover:bg-black/20 rounded-xl border border-white/5 transition-all group text-sm"
             >
-              <span className="text-white/80 group-hover:text-[#df6742] transition-colors">Edit Settings</span>
+              <span className="text-white/80 group-hover:text-[#df6742] transition-colors">Edit Profile Settings</span>
               <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-[#df6742] group-hover:translate-x-1 transition-all" />
             </Link>
           </div>
         </div>
 
-
+        {/* Recent Ledger Logs */}
         <div className="lg:col-span-2 bg-[#243239] p-5 rounded-xl border border-white/5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">Recent Orders</h3>
               <p className="text-[11px] text-white/40">Your last three completed checkout receipts</p>
             </div>
-            <Link href="/dashboard/purchase-history" className="text-xs font-bold text-[#df6742] hover:underline flex items-center gap-1">
+            <Link href="/dashboard/user/purchase-history" className="text-xs font-bold text-[#df6742] hover:underline flex items-center gap-1">
               See All <ArrowRight className="w-3 h-3" />
             </Link>
           </div>
@@ -177,13 +182,13 @@ export default function UserDashboardLanding() {
                     <p className="font-bold text-white/90">
                       {order.artworkDetails?.title || "Exclusive Artwork Collection"}
                     </p>
-                    <p className="font-mono text-[10px] text-white/40 truncate max-w-55">
+                    <p className="font-mono text-[10px] text-white/40 truncate max-w-md">
                       ID: {order.transactionId}
                     </p>
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 border-white/5 pt-2 sm:pt-0">
                     <span className="font-black text-emerald-400 text-sm">
-                      ${order.price?.toFixed(2)}
+                      ${order.price ? Number(order.price).toFixed(2) : "0.00"}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] uppercase font-bold border border-emerald-500/20">
                       {order.status || "paid"}
@@ -194,9 +199,7 @@ export default function UserDashboardLanding() {
             )}
           </div>
         </div>
-
       </div>
-
     </div>
   );
 }

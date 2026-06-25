@@ -20,7 +20,6 @@ export default async function BrowseArtworksPage() {
   }
 
   return (
-    // Wrapped with Suspense to handle searchParams safely during build and client-side navigation
     <Suspense fallback={
       <div className="min-h-screen bg-[#2f3f48] flex items-center justify-center">
         <p className="text-white text-sm font-medium animate-pulse">Loading Artworks...</p>

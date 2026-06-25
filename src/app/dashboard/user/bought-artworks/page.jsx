@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -19,23 +18,23 @@ export default function BoughtArtworksPage() {
     const fetchBoughtArtworks = async () => {
       try {
         const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
-        
         const response = await fetch(`${base}/api/payments/history/${user.id}`);
         
-        // Safety handling if server responds with HTML error wrapper instead of JSON array
+        // Safety layer: Prevent JSON parsing crash if backend outputs a 500 HTML error template
         if (!response.ok) {
-          console.error(`Server responded with unsafe status code: ${response.status}`);
+          console.error(`Fetch target pipeline failed with response status: ${response.status}`);
+          setOrders([]);
           setLoading(false);
           return;
         }
 
         const data = await response.json();
-        
         if (Array.isArray(data)) {
           setOrders(data);
         }
       } catch (error) {
         console.error("Failed to fetch purchased artworks gallery:", error);
+        setOrders([]);
       } finally {
         setLoading(false);
       }
@@ -55,7 +54,6 @@ export default function BoughtArtworksPage() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto text-white">
-      
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
         <div className="flex items-center gap-3">
@@ -76,7 +74,7 @@ export default function BoughtArtworksPage() {
         </Link>
       </div>
 
-      {/* Artworks Grid */}
+      {/* Artworks Grid Display */}
       {orders.length === 0 ? (
         <div className="text-center py-16 bg-[#243239] rounded-2xl border border-white/5 space-y-3 shadow-xl">
           <Palette className="w-8 h-8 mx-auto text-white/20" />
@@ -109,7 +107,6 @@ export default function BoughtArtworksPage() {
                       <span className="text-[10px] tracking-wider uppercase font-bold">No Image Available</span>
                     </div>
                   )}
-                  {/* Category Badge */}
                   {artwork?.category && (
                     <span className="absolute top-3 left-3 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border border-white/10">
                       {artwork.category}
@@ -128,7 +125,7 @@ export default function BoughtArtworksPage() {
                     </p>
                   </div>
 
-                  {/* Pricing and Link Action */}
+                  {/* Pricing Actions */}
                   <div className="flex items-center justify-between pt-3 border-t border-white/5">
                     <div className="space-y-0.5">
                       <p className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Price Paid</p>
@@ -139,7 +136,7 @@ export default function BoughtArtworksPage() {
 
                     {artwork?._id ? (
                       <Link 
-                        href={`/artworks/${artwork._id}`} 
+                        href={`/artwork/${artwork._id}`} 
                         className="flex items-center gap-1.5 text-xs font-bold text-[#df6742] bg-[#df6742]/5 hover:bg-[#df6742]/10 border border-[#df6742]/10 px-3.5 py-2 rounded-xl transition-all group/btn"
                       >
                         View Art

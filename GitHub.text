@@ -8,5 +8,5 @@ git push -u origin main
 
 
 git add .
-git commit -m "Update dashboard layout & Create Admin Dashboard & Fixed bugs in profile page"
+git commit -m "Updated Top 3 dynamic artist profiles ,Design responsive individual artist profile layout"
 git push

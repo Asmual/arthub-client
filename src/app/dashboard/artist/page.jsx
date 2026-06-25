@@ -18,7 +18,6 @@ export default function ArtistDashboard() {
   const { data: session, isPending: authLoading } = authClient.useSession();
   const user = session?.user;
 
-  // ডাইনামিক ডাটা স্টেটসমূহ
   const [stats, setStats] = useState({ totalArts: 0, totalEarnings: 0 });
   const [recentArtworks, setRecentArtworks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,11 +29,10 @@ export default function ArtistDashboard() {
       try {
         const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
         
-        // ১. আর্টিস্টের টোটাল আপলোড এবং আর্নিং স্ট্যাটস নিয়ে আসার ফেচ কল
         const statsResponse = await fetch(`${base}/api/artist/stats/${user.id}`);
         const statsData = await statsResponse.json();
         
-        // ২. আর্টিস্টের লাস্ট ৩টি আপলোড করা আর্টওয়ার্কের ডাটা নিয়ে আসার ফেচ কল
+
         const galleryResponse = await fetch(`${base}/api/artist/artworks/${user.id}`);
         const galleryData = await galleryResponse.json();
 
@@ -46,7 +44,6 @@ export default function ArtistDashboard() {
         }
 
         if (galleryResponse.ok && Array.isArray(galleryData)) {
-          // শুধু সাম্প্রতিক ৩টি আর্টওয়ার্ক ড্যাশবোর্ডে দেখাবো
           setRecentArtworks(galleryData.slice(0, 3));
         }
       } catch (error) {
@@ -70,8 +67,7 @@ export default function ArtistDashboard() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto text-white">
-      
-      {/* ১. প্রিমিয়াম স্টুডিও ব্যানার */}
+    
       <div className="bg-[#243239] p-6 sm:p-8 rounded-2xl border border-white/5 relative overflow-hidden shadow-xl">
         <div className="absolute -right-12 -top-12 w-48 h-48 bg-[#df6742]/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -89,7 +85,6 @@ export default function ArtistDashboard() {
             </p>
           </div>
           
-          {/* কুইক অ্যাকশন বাটন: নতুন আর্টওয়ার্ক আপলোড পেজে যাওয়ার জন্য */}
           <Link 
             href="/dashboard/artist/add-artwork" 
             className="flex items-center gap-2 bg-[#df6742] hover:bg-[#c55332] text-white text-xs font-bold px-4 py-3 rounded-xl transition-all shadow-md active:scale-[0.98] shrink-0 h-fit w-fit"
@@ -99,10 +94,8 @@ export default function ArtistDashboard() {
         </div>
       </div>
 
-      {/* ২. সেলস এবং আর্টওয়ার্ক স্ট্যাটস কাউন্টার কার্ড গ্রিড */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         
-        {/* মোট আপলোড করা আর্টওয়ার্ক কার্ড */}
         <div className="bg-[#243239] p-5 rounded-xl border border-white/5 flex items-center justify-between hover:border-white/10 transition-all group">
           <div className="space-y-1">
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Total Artwork Creations</p>
