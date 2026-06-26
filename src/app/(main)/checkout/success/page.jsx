@@ -1,80 +1,80 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { Loader2, CheckCircle2 } from "lucide-react";
-import Link from "next/link";
+import React, { useEffect, useState, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
+import { CheckCircle, Loader2, Home } from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function SuccessPage() {
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState("processing");
+  const router = useRouter();
   const sessionId = searchParams.get("session_id");
-  const artworkId = searchParams.get("artwork_id");
+  const { data: session, isPending: authLoading } = authClient.useSession();
+  
+  const [syncing, setSyncing] = useState(true);
+  const syncExecuted = useRef(false); // Guard variable to intercept StrictMode duplicate rendering leaks
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (authLoading || !sessionId || !session?.user || syncExecuted.current) return;
 
-    const confirmPaymentInDB = async () => {
+    const synchronizeDatabaseLedger = async () => {
       try {
+        syncExecuted.current = true;
         const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
-        
-        const res = await fetch(`${base}/api/payments/verify-success-order`, {
+
+        const res = await fetch(`${base}/api/payment/verify-payment-sync`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId }),
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.token || ""}`
+          },
+          body: JSON.stringify({ sessionId })
         });
 
-        if (res.ok) {
-          setStatus("success");
-        } else {
-          setStatus("error");
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.message || "Failed ledger database allocation alignment synchronization.");
         }
+
+        toast.success("Transaction successfully captured inside core database ledger!");
       } catch (err) {
-        console.error(err);
-        setStatus("error");
+        console.error("Ecosystem sync error logging exception statement:", err);
+        toast.error(err.message || "Error synchronizing payment lifecycle parameters.");
+      } finally {
+        setSyncing(false);
       }
     };
 
-    confirmPaymentInDB();
-  }, [sessionId]);
+    synchronizeDatabaseLedger();
+  }, [sessionId, session, authLoading]);
+
+  if (authLoading || syncing) {
+    return (
+      <div className="min-h-screen bg-[#243239] flex flex-col items-center justify-center gap-3 text-white">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
+        <p className="text-xs text-white/50 tracking-wider">Verifying transaction secure ledger logs...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#243239] text-white flex items-center justify-center p-4">
-      <div className="text-center p-8 bg-[#1e262b] rounded-2xl border border-white/5 shadow-2xl max-w-md w-full space-y-4">
-        {status === "processing" && (
-          <>
-            <Loader2 className="w-12 h-12 text-[#df6742] animate-spin mx-auto" />
-            <h1 className="text-xl font-bold">Securing Your Database Order...</h1>
-          </>
-        )}
-
-        {status === "success" && (
-          <>
-            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
-            <h1 className="text-2xl font-black text-emerald-400">🎉 Payment Verified!</h1>
-            <p className="text-xs text-white/60">
-              The artwork is now yours. You can now unlock review and comments section inside the item display profile immediately.
-            </p>
-            
-            {/* FIXED: Dynamic directory checking explicitly bound to native client context */}
-            <Link 
-              href={artworkId ? `/browse/${artworkId}` : "/browse"} 
-              className="inline-block mt-4 bg-[#df6742] hover:bg-[#c5522f] px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors"
-            >
-              Back to Artwork Details
-            </Link>
-          </>
-        )}
-
-        {status === "error" && (
-          <>
-            <div className="text-red-500 text-4xl mx-auto">⚠️</div>
-            <h1 className="text-xl font-bold text-red-400">Syncing Failed</h1>
-            <Link href="/" className="inline-block mt-4 bg-white/10 px-6 py-3 rounded-xl text-xs font-bold">
-              Go Home
-            </Link>
-          </>
-        )}
+    <div className="min-h-screen bg-[#243239] text-white flex items-center justify-center p-4" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+      <div className="text-center p-8 max-w-md bg-[#1e262b] rounded-2xl border border-white/5 shadow-2xl space-y-4">
+        <div className="flex justify-center">
+          <CheckCircle className="w-16 h-16 text-emerald-500 animate-bounce" />
+        </div>
+        <h1 className="text-3xl font-black text-emerald-400">Payment Successful!</h1>
+        <p className="text-white/60 text-sm leading-relaxed">
+          Your premium checkout clearance pipeline passed validation. The purchased artwork is now logged to your client profile database configuration.
+        </p>
+        <button 
+          onClick={() => router.push("/dashboard/user")}
+          className="inline-flex items-center gap-2 mt-4 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+        >
+          <Home className="w-4 h-4" /> Go To Dashboard
+        </button>
       </div>
     </div>
   );

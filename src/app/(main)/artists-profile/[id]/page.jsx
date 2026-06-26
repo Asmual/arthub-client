@@ -250,7 +250,7 @@ export default function ArtistProfilePage() {
                   className="w-28 h-28 rounded-full object-cover border-4 border-[#243239] shadow-xl ring-2 ring-[#df6742]/20"
                 />
               ) : (
-                <div className="w-28 h-28 rounded-full bg-gradient-to-br from-[#df6742] to-[#b34928] border-4 border-[#243239] flex items-center justify-center text-3xl font-black text-white shadow-xl">
+                <div className="w-28 h-28 rounded-full bg-linear-to-br from-[#df6742] to-[#b34928] border-4 border-[#243239] flex items-center justify-center text-3xl font-black text-white shadow-xl">
                   {getInitials(artist?.name)}
                 </div>
               )}

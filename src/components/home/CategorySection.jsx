@@ -37,10 +37,10 @@ export default function CategorySection() {
         
         {/* Section Header - Centered */}
         <div className="text-center">
-          <h2 className="text-2xl font-extrabold text-white tracking-tight">
+          <h2 className="text-4xl md:text-5xl font-extrabold text-white tracking-tight">
             Browse by <span className="text-[#df6742]">Category</span>
           </h2>
-          <p className="text-xs text-neutral-400 mt-2 max-w-md mx-auto">
+          <p className="text-md text-neutral-400 mt-4 max-w-md mx-auto">
             Explore our curated collections across different art forms
           </p>
         </div>

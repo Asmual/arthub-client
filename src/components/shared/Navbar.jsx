@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable react-hooks/static-components */
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -108,7 +109,7 @@ const Navbar = () => {
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [isAvatarOpen, setIsAvatarOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
-  
+ 
   // Search States
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -120,7 +121,6 @@ const Navbar = () => {
   const desktopSearchRef = useRef(null);
   const mobileSearchRef = useRef(null);
 
-  // Reset image error state when user session changes
   useEffect(() => {
     setImageError(false);
   }, [user]);
@@ -145,15 +145,18 @@ const Navbar = () => {
       }
       setIsSearching(true);
       try {
-        const res = await fetch(`http://localhost:5000/api/artworks/search?query=${encodeURIComponent(searchQuery)}`);
+        const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
+        const res = await fetch(`${base}/api/artworks/search?query=${encodeURIComponent(searchQuery.trim())}`);
         if (res.ok) {
           const data = await res.json();
-          setSearchResults(data.slice(0, 5));
+          // Fallback parsing inline arrays if data comes as nested object parameter
+          const normalizedData = Array.isArray(data) ? data : (data.artworks || []);
+          setSearchResults(normalizedData.slice(0, 5));
         } else {
           setSearchResults([]);
         }
       } catch (err) {
-        console.error("Live search failed:", err);
+        console.error("Live search failed pipeline link:", err);
         setSearchResults([]);
       } finally {
         setIsSearching(false);
@@ -193,7 +196,6 @@ const Navbar = () => {
     }
   };
 
-  // Navigates directly to the designated profile page based on current user role
   const navigateToProfile = () => {
     if (!user) return;
     const targetRole = user.role === "buyer" ? "user" : user.role;
@@ -225,7 +227,7 @@ const Navbar = () => {
               className="flex items-center gap-3 px-4 py-2 hover:bg-white/5 transition-colors group"
             >
               <div className="w-10 h-10 rounded-lg overflow-hidden relative bg-black/20 shrink-0 border border-white/10">
-                <img src={art.image || "/Images/placeholder.png"} alt={art.title} className="object-cover w-full h-full" />
+                <img src={art.image || art.artworkImage || "/Images/placeholder.png"} alt={art.title} className="object-cover w-full h-full" />
               </div>
               <div className="min-w-0 flex-1">
                 <h4 className="text-sm font-semibold text-white truncate group-hover:text-[#df6742] transition-colors">{art.title}</h4>
@@ -245,7 +247,7 @@ const Navbar = () => {
     <nav className="bg-[#2f3f48] text-white shadow-lg sticky top-0 z-50 h-16 flex items-center" style={{ fontFamily: "'Montserrat', sans-serif" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         <div className="flex items-center h-16 gap-4">
-          
+         
           {/* BRAND LOGO */}
           <NextLink href="/" className="flex items-center gap-2.5 group shrink-0">
             <Image src="/Images/ArtHubLogo.png" alt="ArtHub Logo" width={36} height={36} className="object-contain group-hover:scale-105 transition-transform" />
@@ -384,7 +386,7 @@ const Navbar = () => {
       {isMobileMenuOpen && (
         <div className="absolute top-16 left-0 w-full md:hidden bg-[#243239] border-t border-white/10 shadow-xl z-50 max-h-[calc(100vh-64px)] overflow-y-auto">
           <div className="px-6 pt-5 pb-6 space-y-3 flex flex-col items-center justify-center text-center">
-            
+           
             {/* Mobile Search Input */}
             <div className="w-full max-w-sm mb-2 relative" ref={mobileSearchRef}>
               <form onSubmit={handleSearchSubmit} className="w-full">
@@ -404,7 +406,7 @@ const Navbar = () => {
                   )}
                 </div>
               </form>
-              
+             
               {searchQuery.trim() !== "" && (
                 <SearchSuggestions closeSearch={() => { setIsMobileMenuOpen(false); setSearchQuery(""); }} />
               )}
@@ -418,7 +420,7 @@ const Navbar = () => {
             >
               Home
             </NextLink>
-            
+           
             <NextLink
               href="/browse"
               onClick={() => setIsMobileMenuOpen(false)}
@@ -481,7 +483,7 @@ const Navbar = () => {
                       <div className="text-[11px] text-white/50 max-w-60 truncate select-all mt-0.5">{user.email}</div>
                     </div>
                   </div>
-                  
+                 
                   <button onClick={handleLogout} className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold text-white bg-[#df6742] hover:bg-[#c55332] transition-colors shadow-md">
                     <LogOut size={14} />
                     Logout

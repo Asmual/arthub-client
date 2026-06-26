@@ -1,11 +1,18 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
 import { Users, Palette, CreditCard, DollarSign, ArrowUpRight, Activity, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function AdminDashboardOverview() {
+  const router = useRouter();
+  const { data: session, isPending: authLoading } = authClient.useSession();
+  const user = session?.user;
+
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState({
     totalUsers: 0,
@@ -16,29 +23,40 @@ export default function AdminDashboardOverview() {
   });
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (user.role !== "admin") {
+      toast.error("Unauthorized access context profile.");
+      router.replace("/dashboard");
+      return;
+    }
+
     const loadDynamicMetrics = async () => {
       try {
         setLoading(true);
-        
-        // Retrieve session data or tokens safely (Adjust based on your Auth setup)
-        const userToken = "your_session_token_here"; 
-        const adminEmail = "admin@example.com"; 
+        const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
+        const targetToken = session?.token || "simulated-platform-admin-auth-token-string";
 
-        // Fetch metrics from protected backend API route
-        const res = await fetch("http://localhost:5000/api/admin/dashboard-stats", {
+        const res = await fetch(`${base}/api/admin/dashboard-stats`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${userToken}`,
-            "email": adminEmail
+            "Authorization": `Bearer ${targetToken}`,
+            "email": user.email
           }
         });
-        
+       
         if (!res.ok) {
-          throw new Error(`Server responded with status: ${res.status}`);
+          throw new Error(`Server tracking matrix sync failed with code status: ${res.status}`);
         }
        
         const data = await res.json();
+       
         setDashboardData({
           totalUsers: data.totalUsers || 0,
           verifiedArtworks: data.verifiedArtworks || 0,
@@ -47,7 +65,7 @@ export default function AdminDashboardOverview() {
           recentSales: data.recentSales || []
         });
       } catch (err) {
-        console.error("Ledger synchronization error:", err);
+        console.error("Administrative telemetry collection crashed safely:", err);
         toast.error("Error synchronizing real-time analytics");
       } finally {
         setLoading(false);
@@ -55,20 +73,20 @@ export default function AdminDashboardOverview() {
     };
    
     loadDynamicMetrics();
-  }, []);
+  }, [user, authLoading, router, session]);
 
   const stats = [
     { label: "Total Users", value: dashboardData.totalUsers.toLocaleString(), icon: Users, change: "Registered accounts", color: "text-[#df6742]" },
     { label: "Verified Artworks", value: dashboardData.verifiedArtworks.toLocaleString(), icon: Palette, change: "Live gallery listings", color: "text-blue-400" },
     { label: "Transactions", value: dashboardData.transactionsCount.toLocaleString(), icon: CreditCard, change: "Successful purchases", color: "text-amber-400" },
-    { label: "Platform Revenue", value: `$${dashboardData.platformRevenue.toLocaleString()}`, icon: DollarSign, change: "Gross volume processed", color: "text-emerald-400" },
+    { label: "Platform Revenue", value: `$${dashboardData.platformRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, icon: DollarSign, change: "Gross volume processed", color: "text-emerald-400" },
   ];
 
-  if (loading) {
+  if (authLoading || loading || !user || user.role !== "admin") {
     return (
-      <div className="min-h-[50vh] flex flex-col items-center justify-center gap-2 text-white">
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-white">
         <Loader2 className="w-8 h-8 animate-spin text-[#df6742]" />
-        <p className="text-sm font-medium text-white/50">Synchronizing ledger telemetry...</p>
+        <p className="text-xs font-medium text-white/50 tracking-wide">Synchronizing ledger telemetry...</p>
       </div>
     );
   }
@@ -76,7 +94,6 @@ export default function AdminDashboardOverview() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto p-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>
      
-      {/* Header Banner */}
       <div className="bg-[#243239] p-6 rounded-2xl border border-white/5 flex flex-col justify-between md:flex-row md:items-center gap-4 shadow-lg">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-wide">System Administration Overview</h1>
@@ -90,7 +107,6 @@ export default function AdminDashboardOverview() {
         </div>
       </div>
 
-      {/* Metric Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, i) => {
           const Icon = stat.icon;
@@ -111,10 +127,8 @@ export default function AdminDashboardOverview() {
         })}
       </div>
 
-      {/* Dashboard Insights Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
        
-        {/* Recent Transactions Pipeline */}
         <div className="lg:col-span-7 bg-[#243239] p-6 rounded-2xl border border-white/5 shadow-xl space-y-4">
           <div className="flex items-center justify-between border-b border-white/5 pb-3">
             <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -127,21 +141,28 @@ export default function AdminDashboardOverview() {
 
           <div className="space-y-3">
             {dashboardData.recentSales.length === 0 ? (
-              <p className="text-sm text-white/40 text-center py-6">No recent sales records logged.</p>
+              <div className="text-center py-10 bg-black/5 rounded-xl border border-dashed border-white/5">
+                <p className="text-sm text-white/40">No recent sales records logged in the pipeline.</p>
+              </div>
             ) : (
               dashboardData.recentSales.map((sales, idx) => (
                 <div key={idx} className="bg-[#2f3f48] border border-white/4 p-4 rounded-xl flex items-center justify-between gap-4 hover:bg-[#2a3941] transition-all">
-                  <div className="min-w-0">
-                    <p className="text-xs text-white/40 font-mono">{sales._id || sales.id}</p>
-                    <h4 className="text-sm font-bold text-white truncate mt-0.5">{sales.artworkTitle || sales.artwork}</h4>
-                    <p className="text-xs text-white/50 truncate">{sales.buyerEmail || sales.buyer}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] text-white/40 font-mono truncate">{sales.transactionId || sales._id || sales.id}</p>
+                    <h4 className="text-sm font-bold text-white truncate mt-0.5">{sales.artworkTitle || "Artwork Purchase"}</h4>
+                    <p className="text-xs text-white/50 truncate">{sales.buyerEmail || "N/A"}</p>
                   </div>
                   <div className="text-right shrink-0">
-                    <span className="text-sm font-black text-emerald-400">${sales.amount}</span>
-                    <span className={`block text-[9px] font-bold uppercase mt-1 px-1.5 py-0.5 rounded ${
-                      sales.status === "Success" || sales.status === "completed" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+                    <span className="text-sm font-black text-emerald-400">
+                      ${Number(sales.price).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
+                    {/* Aligned dynamic badges to evaluate the 'paid' parameter validation array */}
+                    <span className={`block text-[9px] font-bold uppercase mt-1 px-1.5 py-0.5 rounded text-center ${
+                      sales.status?.toLowerCase() === "paid" || sales.status?.toLowerCase() === "succeeded"
+                        ? "bg-emerald-500/10 text-emerald-400"
+                        : "bg-amber-500/10 text-amber-400"
                     }`}>
-                      {sales.status}
+                      {sales.status || "Success"}
                     </span>
                   </div>
                 </div>
@@ -150,7 +171,6 @@ export default function AdminDashboardOverview() {
           </div>
         </div>
 
-        {/* Navigation Hub */}
         <div className="lg:col-span-5 bg-[#243239] p-6 rounded-2xl border border-white/5 shadow-xl flex flex-col justify-between">
           <div>
             <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">

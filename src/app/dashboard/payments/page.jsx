@@ -18,7 +18,7 @@ export default function BuyerPaymentHistory() {
     const fetchPaymentHistory = async () => {
       try {
         const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
-        const response = await fetch(`${base}/api/payments/history/${user.id}`);
+        const response = await fetch(`${base}/api/payment/history/${user.id}`);
         const data = await response.json();
         
         if (Array.isArray(data)) {

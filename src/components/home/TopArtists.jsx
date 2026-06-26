@@ -96,8 +96,8 @@ const TopArtists = () => {
             <span className="w-1.5 h-1.5 rounded-full bg-[#df6742]" />
             FEATURED CREATORS
           </div>
-          <h2 className="text-[32px] font-bold text-white mb-2 leading-tight">
-            Top <span className="text-[#df6742]">Artists</span> of the Month
+          <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-2 leading-tight">
+            Top <span className="text-[#df6742]">Artists</span>
           </h2>
           <p className="text-[13px] text-white/40 max-w-sm mx-auto leading-relaxed">
             Most celebrated creators ranked by their verified masterworks &amp; total sales report

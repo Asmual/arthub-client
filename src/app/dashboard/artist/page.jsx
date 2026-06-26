@@ -1,20 +1,24 @@
+ 
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
-import { 
-  Palette, 
-  DollarSign, 
-  PlusCircle, 
-  ArrowRight, 
-  Loader2, 
-  TrendingUp, 
-  ImageOff 
+import {
+  Palette,
+  DollarSign,
+  PlusCircle,
+  ArrowRight,
+  Loader2,
+  TrendingUp,
+  ImageOff
 } from "lucide-react";
 import Link from "next/link";
+import toast from "react-hot-toast";
 
 export default function ArtistDashboard() {
+  const router = useRouter();
   const { data: session, isPending: authLoading } = authClient.useSession();
   const user = session?.user;
 
@@ -22,16 +26,27 @@ export default function ArtistDashboard() {
   const [recentArtworks, setRecentArtworks] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Strictly bind routing access permissions to registered artists only
   useEffect(() => {
-    if (!user?.id) return;
+    if (!authLoading) {
+      if (!user) {
+        router.replace("/login");
+      } else if (user.role !== "artist") {
+        toast.error("Restricted access area. Visual creators only!");
+        router.replace("/dashboard");
+      }
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (!user?.id || user.role !== "artist") return;
 
     const fetchArtistData = async () => {
       try {
         const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
-        
+       
         const statsResponse = await fetch(`${base}/api/artist/stats/${user.id}`);
         const statsData = await statsResponse.json();
-        
 
         const galleryResponse = await fetch(`${base}/api/artist/artworks/${user.id}`);
         const galleryData = await galleryResponse.json();
@@ -54,11 +69,11 @@ export default function ArtistDashboard() {
     };
 
     fetchArtistData();
-  }, [user?.id]);
+  }, [user]);
 
-  if (authLoading) {
+  if (authLoading || (!user || user.role !== "artist")) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-2 text-white">
+      <div className="min-h-screen bg-[#2f3f48] flex flex-col items-center justify-center gap-2 text-white">
         <Loader2 className="w-8 h-8 text-[#df6742] animate-spin" />
         <p className="text-xs text-white/40">Securing studio session...</p>
       </div>
@@ -66,8 +81,8 @@ export default function ArtistDashboard() {
   }
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto text-white">
-    
+    <div className="space-y-6 max-w-5xl mx-auto text-white p-4">
+   
       <div className="bg-[#243239] p-6 sm:p-8 rounded-2xl border border-white/5 relative overflow-hidden shadow-xl">
         <div className="absolute -right-12 -top-12 w-48 h-48 bg-[#df6742]/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -84,9 +99,9 @@ export default function ArtistDashboard() {
               Welcome back! Showcase your creativity, upload new canvas masterpieces, and monitor your global sales analytics in real-time.
             </p>
           </div>
-          
-          <Link 
-            href="/dashboard/artist/add-artwork" 
+         
+          <Link
+            href="/dashboard/artist/add-artwork"
             className="flex items-center gap-2 bg-[#df6742] hover:bg-[#c55332] text-white text-xs font-bold px-4 py-3 rounded-xl transition-all shadow-md active:scale-[0.98] shrink-0 h-fit w-fit"
           >
             <PlusCircle size={16} /> Upload Masterpiece
@@ -95,7 +110,7 @@ export default function ArtistDashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        
+       
         <div className="bg-[#243239] p-5 rounded-xl border border-white/5 flex items-center justify-between hover:border-white/10 transition-all group">
           <div className="space-y-1">
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Total Artwork Creations</p>
@@ -108,7 +123,6 @@ export default function ArtistDashboard() {
           </div>
         </div>
 
-        {/* মোট উপার্জিত রেভিনিউ/আয় কার্ড */}
         <div className="bg-[#243239] p-5 rounded-xl border border-white/5 flex items-center justify-between hover:border-white/10 transition-all group">
           <div className="space-y-1">
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Total Revenue Generated</p>
@@ -123,27 +137,25 @@ export default function ArtistDashboard() {
 
       </div>
 
-      {/* ৩. কুইক নেভিগেশন অ্যাকশন এবং রিসেন্ট গ্যালারি সেকশন */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* বাম দিকের কলাম: কুইক ম্যানেজমেন্ট লিংকসমূহ */}
+      <div className="grid grid-cols-3 gap-6">
+       
         <div className="lg:col-span-1 bg-[#243239] p-5 rounded-xl border border-white/5 space-y-4 h-fit">
           <div>
             <h3 className="text-sm font-bold text-white uppercase tracking-wider">Studio Navigation</h3>
             <p className="text-[11px] text-white/40">Manage your collections and profile metadata</p>
           </div>
-          
+         
           <div className="space-y-2 pt-2">
-            <Link 
-              href="/dashboard/artist/my-artworks" 
+            <Link
+              href="/dashboard/artist/my-artworks"
               className="flex items-center justify-between p-3 bg-black/10 hover:bg-black/20 rounded-xl border border-white/5 transition-all group text-sm"
             >
               <span className="text-white/80 group-hover:text-[#df6742] transition-colors">My Gallery Showcase</span>
               <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-[#df6742] group-hover:translate-x-1 transition-all" />
             </Link>
 
-            <Link 
-              href="/dashboard/artist/profile" 
+            <Link
+              href="/dashboard/artist/profile"
               className="flex items-center justify-between p-3 bg-black/10 hover:bg-black/20 rounded-xl border border-white/5 transition-all group text-sm"
             >
               <span className="text-white/80 group-hover:text-[#df6742] transition-colors">Artist Profile Settings</span>
@@ -152,7 +164,6 @@ export default function ArtistDashboard() {
           </div>
         </div>
 
-        {/* ডান দিকের কলাম: রিসেন্ট আপলোড করা আর্টওয়ার্ক লিস্ট বা সামারি */}
         <div className="lg:col-span-2 bg-[#243239] p-5 rounded-xl border border-white/5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -176,8 +187,8 @@ export default function ArtistDashboard() {
               </div>
             ) : (
               recentArtworks.map((art) => (
-                <div 
-                  key={art._id} 
+                <div
+                  key={art._id}
                   className="p-3 bg-black/10 rounded-xl border border-white/5 flex items-center justify-between gap-3 text-xs hover:border-white/10 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -208,7 +219,6 @@ export default function ArtistDashboard() {
         </div>
 
       </div>
-
     </div>
   );
 }

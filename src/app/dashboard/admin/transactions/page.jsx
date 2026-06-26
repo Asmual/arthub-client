@@ -1,22 +1,51 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 import { FaExchangeAlt, FaSearch, FaCreditCard, FaCheckCircle, FaExclamationTriangle, FaDownload } from "react-icons/fa";
 import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function AdminTransactionsPage() {
+  const router = useRouter();
+  const { data: session, isPending: authLoading } = authClient.useSession();
+  const user = session?.user;
+
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [transactions, setTransactions] = useState([]);
 
-  // Fetch transaction records from the orders backend endpoint
   useEffect(() => {
+    if (!authLoading) {
+      if (!user) {
+        router.replace("/login");
+      } else if (user.role !== "admin") {
+        toast.error("Access Denied! Administrators only.");
+        router.replace("/dashboard");
+      }
+    }
+  }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (!user || user.role !== "admin") return;
+
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        const res = await fetch("http://localhost:5000/api/payments/all-transactions");
+        const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
+        
+        // Wrapped secure verification payloads directly inside fetch pipeline
+        const res = await fetch(`${base}/api/payment/all-transactions`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session?.token || "simulated-platform-admin-auth-token-string"}`,
+            "email": user.email
+          }
+        });
        
         if (!res.ok) {
           throw new Error("Failed to capture master gateway transactions telemetry");
@@ -33,9 +62,8 @@ export default function AdminTransactionsPage() {
     };
 
     fetchTransactions();
-  }, []);
+  }, [user, session]);
 
-  // Filter dynamic dataset based on user search metrics and payment states
   const filteredTransactions = transactions.filter((txn) => {
     const safeBuyerEmail = txn.buyerEmail || txn.userId || "";
     const safeTransactionId = txn.transactionId || "";
@@ -47,21 +75,29 @@ export default function AdminTransactionsPage() {
       safeTransactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       safeType.toLowerCase().includes(searchTerm.toLowerCase());
      
-    const matchesStatus = statusFilter === "all" || safeStatus === statusFilter;
+    const matchesStatus = statusFilter === "all" || safeStatus.toLowerCase() === statusFilter.toLowerCase();
    
     return matchesSearch && matchesStatus;
   });
 
-  // Aggregate gross processed revenue across successful entries
+  // Re-mapped data object to monitor ".amount" variable directly from database setup records
   const totalRevenue = transactions
     .filter(t => t.status === "paid" || t.status === "succeeded")
-    .reduce((acc, curr) => acc + (Number(curr.price) || 0), 0);
+    .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+
+  if (authLoading || (!user || user.role !== "admin")) {
+    return (
+      <div className="min-h-screen bg-[#2f3f48] flex flex-col items-center justify-center gap-2 text-white">
+        <Loader2 className="w-8 h-8 text-[#df6742] animate-spin" />
+        <p className="text-xs text-white/40">Verifying administrator clearance status...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#2f3f48] p-6 sm:p-10 text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>
       <div className="max-w-6xl mx-auto space-y-8">
        
-        {/* Page Header */}
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <FaExchangeAlt className="text-[#df6742] text-xl" /> Buyer Transaction Ledger
@@ -71,7 +107,6 @@ export default function AdminTransactionsPage() {
           </p>
         </div>
 
-        {/* Global Overview Metrics */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-[#243239] border border-white/5 rounded-2xl p-5 shadow-md">
             <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Gross Revenue</p>
@@ -89,7 +124,6 @@ export default function AdminTransactionsPage() {
           </div>
         </div>
 
-        {/* Filter Toolbar Interface */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#243239] border border-white/5 p-4 rounded-xl shadow-md">
           <div className="relative w-full sm:w-72">
             <input
@@ -115,7 +149,6 @@ export default function AdminTransactionsPage() {
           </div>
         </div>
 
-        {/* Transactions Data Table */}
         <div className="bg-[#243239] border border-white/5 rounded-2xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
             {loading ? (
@@ -139,17 +172,15 @@ export default function AdminTransactionsPage() {
                   {filteredTransactions.map((txn) => (
                     <tr key={txn._id || txn.id} className="hover:bg-white/2 transition-colors duration-150 text-white/90">
                      
-                      {/* Transaction ID & Buyer Email Info */}
                       <td className="p-4 pl-6 space-y-1">
-                        <p className="font-mono text-white/40 text-[11px] truncate max-w-[160px]" title={txn.transactionId}>
+                        <p className="font-mono text-white/40 text-[11px] truncate max-w-40" title={txn.transactionId}>
                           {txn.transactionId || "N/A"}
                         </p>
-                        <p className="font-semibold text-white/80 truncate max-w-[200px]">
+                        <p className="font-semibold text-white/80 truncate max-w-50">
                           {txn.buyerEmail || txn.userId}
                         </p>
                       </td>
 
-                      {/* Transaction Type Meta Mapping */}
                       <td className="p-4 font-medium text-white/70 uppercase text-xs tracking-wider">
                         <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
                           txn.type === "subscription" ? "bg-purple-500/10 text-purple-400" : "bg-blue-500/10 text-blue-400"
@@ -158,19 +189,16 @@ export default function AdminTransactionsPage() {
                         </span>
                       </td>
 
-                      {/* Dynamic Monetary Pricing Render */}
                       <td className="p-4 font-bold text-[#df6742]">
-                        ${(navigator && Number(txn.price) || 0).toFixed(2)}
+                        ${(Number(txn.amount) || 0).toFixed(2)}
                       </td>
 
-                      {/* Core Gateway Payment Method */}
                       <td className="p-4 text-white/50 font-medium">
                         <span className="flex items-center gap-1">
                           <FaCreditCard className="text-[11px]" /> CARD
                         </span>
                       </td>
 
-                      {/* Core Success/Fail Checkbox Nodes */}
                       <td className="p-4">
                         {txn.status === "paid" || txn.status === "succeeded" ? (
                           <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-2.5 py-1 rounded-md uppercase">
@@ -183,7 +211,6 @@ export default function AdminTransactionsPage() {
                         )}
                       </td>
 
-                      {/* Optional Receipt Downloader Triggers */}
                       <td className="p-4 text-center pr-6">
                         <button
                           onClick={() => toast.success(`Exporting Invoice Statement: ${txn._id || txn.id}`)}
@@ -201,7 +228,6 @@ export default function AdminTransactionsPage() {
             )}
           </div>
 
-          {/* Empty State Pipeline State Wrapper */}
           {!loading && filteredTransactions.length === 0 && (
             <p className="text-center text-xs text-white/30 py-12">
               No matching transaction histories logged inside your payment gateway.

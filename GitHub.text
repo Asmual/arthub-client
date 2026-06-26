@@ -8,5 +8,5 @@ git push -u origin main
 
 
 git add .
-git commit -m "Updated Top 3 dynamic artist profiles ,Design responsive individual artist profile layout"
+git commit -m "Admin Dashboard dynamically updated with new data"
 git push
