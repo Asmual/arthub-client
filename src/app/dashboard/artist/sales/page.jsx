@@ -51,7 +51,7 @@ export default function SalesPage() {
         {/* Ledger Order Record Rows Block */}
         <div className="bg-[#243239] border border-white/5 rounded-2xl p-6 shadow-xl space-y-4">
           <div className="pb-2 border-b border-white/5">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider text-white/60 flex items-center gap-1.5">
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
               <FaRegClock className="text-xs" /> Detailed Order Statements
             </h3>
           </div>

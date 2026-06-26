@@ -54,7 +54,7 @@ export default function ManageArtworksPage() {
                     {/* Media Node Frame Info */}
                     <td className="p-4 pl-6 flex items-center gap-3">
                       <img src={art.image} alt={art.title} className="w-12 h-12 rounded-lg object-cover bg-neutral-800 border border-white/5" />
-                      <span className="font-bold text-white truncate max-w-[180px]">{art.title}</span>
+                      <span className="font-bold text-white truncate max-w-45">{art.title}</span>
                     </td>
                     
                     {/* Category Label */}

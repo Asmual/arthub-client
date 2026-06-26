@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -13,13 +12,20 @@ export default function AdminTransactionsPage() {
   const { data: session, isPending: authLoading } = authClient.useSession();
   const user = session?.user;
 
+  const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [transactions, setTransactions] = useState([]);
 
+  // Fix Hydration Error by ensuring client-only code runs after mounting
   useEffect(() => {
-    if (!authLoading) {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !authLoading) {
       if (!user) {
         router.replace("/login");
       } else if (user.role !== "admin") {
@@ -27,22 +33,23 @@ export default function AdminTransactionsPage() {
         router.replace("/dashboard");
       }
     }
-  }, [user, authLoading, router]);
+  }, [user, authLoading, router, mounted]);
 
   useEffect(() => {
-    if (!user || user.role !== "admin") return;
+    if (!mounted || !user || user.role !== "admin") return;
 
     const fetchTransactions = async () => {
       try {
         setLoading(true);
-        const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
-        
-        // Wrapped secure verification payloads directly inside fetch pipeline
+        const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server.onrender.com").replace(/\/$/, "");
+        const token = localStorage.getItem("token");
+
+        // Requesting with appropriate Authorization token and email context headers
         const res = await fetch(`${base}/api/payment/all-transactions`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${session?.token || "simulated-platform-admin-auth-token-string"}`,
+            "Authorization": `Bearer ${token}`,
             "email": user.email
           }
         });
@@ -52,7 +59,7 @@ export default function AdminTransactionsPage() {
         }
        
         const data = await res.json();
-        setTransactions(data || []);
+        setTransactions(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Ledger fetch execution error:", err);
         toast.error("Could not sync transaction history.");
@@ -62,28 +69,17 @@ export default function AdminTransactionsPage() {
     };
 
     fetchTransactions();
-  }, [user, session]);
+  }, [user, session, mounted]);
 
-  const filteredTransactions = transactions.filter((txn) => {
-    const safeBuyerEmail = txn.buyerEmail || txn.userId || "";
-    const safeTransactionId = txn.transactionId || "";
-    const safeType = txn.type || "";
-    const safeStatus = txn.status || "";
-
-    const matchesSearch =
-      safeBuyerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      safeTransactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      safeType.toLowerCase().includes(searchTerm.toLowerCase());
-     
-    const matchesStatus = statusFilter === "all" || safeStatus.toLowerCase() === statusFilter.toLowerCase();
-   
-    return matchesSearch && matchesStatus;
-  });
-
-  // Re-mapped data object to monitor ".amount" variable directly from database setup records
-  const totalRevenue = transactions
-    .filter(t => t.status === "paid" || t.status === "succeeded")
-    .reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
+  // Prevent UI rendering until component is safely mounted on the client
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-[#2f3f48] flex flex-col items-center justify-center gap-2 text-white">
+        <Loader2 className="w-8 h-8 text-[#df6742] animate-spin" />
+        <p className="text-xs text-white/40">Initializing marketplace workspace...</p>
+      </div>
+    );
+  }
 
   if (authLoading || (!user || user.role !== "admin")) {
     return (
@@ -93,6 +89,26 @@ export default function AdminTransactionsPage() {
       </div>
     );
   }
+
+  const filteredTransactions = transactions.filter((txn) => {
+    const safeBuyerEmail = txn.buyerEmail || txn.userId || "";
+    const safeTransactionId = txn.transactionId || "";
+    const safeArtworkTitle = txn.artworkTitle || "";
+    const safeStatus = txn.status || "";
+
+    const matchesSearch =
+      safeBuyerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      safeTransactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      safeArtworkTitle.toLowerCase().includes(searchTerm.toLowerCase());
+     
+    const matchesStatus = statusFilter === "all" || safeStatus.toLowerCase() === statusFilter.toLowerCase();
+   
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalRevenue = transactions
+    .filter(t => t.status === "paid" || t.status === "succeeded")
+    .reduce((acc, curr) => acc + (Number(curr.price) || Number(curr.amount) || 0), 0);
 
   return (
     <div className="min-h-screen bg-[#2f3f48] p-6 sm:p-10 text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>
@@ -128,7 +144,7 @@ export default function AdminTransactionsPage() {
           <div className="relative w-full sm:w-72">
             <input
               type="text"
-              placeholder="Search Email, Transaction ID, Type..."
+              placeholder="Search Email, Transaction ID, Title..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-[#2f3f48] border border-white/8 rounded-xl pl-9 pr-4 py-2.5 text-xs focus:outline-none focus:border-[#df6742]/60 transition-all"
@@ -161,7 +177,7 @@ export default function AdminTransactionsPage() {
                 <thead>
                   <tr className="bg-white/4 border-b border-white/5 text-[11px] font-bold uppercase tracking-wider text-white/50">
                     <th className="p-4 pl-6">Transaction ID / Buyer</th>
-                    <th className="p-4">Transaction Type</th>
+                    <th className="p-4">Artwork Title</th>
                     <th className="p-4">Amount</th>
                     <th className="p-4">Method</th>
                     <th className="p-4">Status</th>
@@ -177,20 +193,18 @@ export default function AdminTransactionsPage() {
                           {txn.transactionId || "N/A"}
                         </p>
                         <p className="font-semibold text-white/80 truncate max-w-50">
-                          {txn.buyerEmail || txn.userId}
+                          {txn.buyerEmail || "System Guest Buyer"}
                         </p>
                       </td>
 
                       <td className="p-4 font-medium text-white/70 uppercase text-xs tracking-wider">
-                        <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] ${
-                          txn.type === "subscription" ? "bg-purple-500/10 text-purple-400" : "bg-blue-500/10 text-blue-400"
-                        }`}>
-                          {txn.type || "purchase"}
+                        <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-blue-500/10 text-blue-400 max-w-40 truncate block">
+                          {txn.artworkTitle || "Gallery Asset"}
                         </span>
                       </td>
 
                       <td className="p-4 font-bold text-[#df6742]">
-                        ${(Number(txn.amount) || 0).toFixed(2)}
+                        ${(Number(txn.price) || Number(txn.amount) || 0).toFixed(2)}
                       </td>
 
                       <td className="p-4 text-white/50 font-medium">

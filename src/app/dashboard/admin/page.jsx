@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import AdminDashboardOverview from "@/components/dashboard-overview/AdminDashboardOverview";
-import { Loader2 } from "lucide-react";
+import Loading from "@/app/loading";
 
 export default function AdminDashboardPage() {
   const router = useRouter();
@@ -20,14 +20,8 @@ export default function AdminDashboardPage() {
     }
   }, [user, authLoading, router]);
 
-  // Render uniform loading spinner infrastructure during background authentication checks
   if (authLoading) {
-    return (
-      <div className="min-h-screen bg-[#1e292f] flex flex-col items-center justify-center gap-2 text-white">
-        <Loader2 className="w-8 h-8 animate-spin text-[#df6742]" />
-        <p className="text-xs font-medium text-white/40 tracking-widest uppercase">Verifying Security Credentials...</p>
-      </div>
-    );
+    return <Loading />;
   }
 
   // Ensure nothing renders if the user is unauthorized during router transition
