@@ -1,83 +1,140 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
-import { 
-  ShoppingBag, 
-  User as UserIcon, 
-  ShieldCheck, 
-  ArrowRight, 
-  Loader2, 
-  CreditCard, 
-  Clock 
+import {
+  ShoppingBag, User as UserIcon, ShieldCheck,
+  ArrowRight, Loader2, CreditCard, Clock, CheckCircle
 } from "lucide-react";
 import Link from "next/link";
+import toast from "react-hot-toast";
+
+// Fetch JWT from backend using BetterAuth session email
+const getAuthToken = async (base, email) => {
+  const res = await fetch(`${base}/api/users/generate-token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) throw new Error("Token generation failed.");
+  const { token } = await res.json();
+  return token;
+};
 
 export default function UserDashboardLanding() {
   const { data: session, isPending: authLoading } = authClient.useSession();
   const user = session?.user;
+  const searchParams = useSearchParams();
 
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [paymentVerified, setPaymentVerified] = useState(false);
 
+  const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
+
+  // Verify Stripe payment if session_id exists in URL
   useEffect(() => {
-    if (!user?.id) return;
+    const sessionId = searchParams.get("session_id");
+    if (!sessionId || !user?.email) return;
 
-    const fetchDashboardData = async () => {
+    const verifyPayment = async () => {
       try {
-        const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
-        const response = await fetch(`${base}/api/payments/history/${user.id}`);
-        
-        if (!response.ok) {
-          throw new Error("Failed to sync client transaction records");
+        const token = await getAuthToken(base, user.email);
+        const res = await fetch(`${base}/api/payment/verify-payment-sync`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ sessionId }),
+        });
+
+        if (res.ok) {
+          setPaymentVerified(true);
+          toast.success("Payment verified! Your artwork has been added to your collection.");
+          // Remove session_id from URL without reload
+          window.history.replaceState({}, "", "/dashboard/user");
         }
-        
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          setRecentOrders(data.slice(0, 3));
-        }
-      } catch (error) {
-        console.error("Error synchronization dashboard data:", error);
-      } finally {
-        setLoading(false);
+      } catch (err) {
+        console.error("Payment verification error:", err);
       }
     };
 
-    fetchDashboardData();
-  }, [user?.id]);
+    verifyPayment();
+  }, [searchParams, user?.email, base]);
+
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  const fetchDashboardData = useCallback(async () => {
+    if (!user?.email) return;
+    try {
+      setLoading(true);
+      const token = await getAuthToken(base, user.email);
+
+      const res = await fetch(`${base}/api/payment/history/${user.id || user.email}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error("Failed to fetch orders.");
+      const data = await res.json();
+      if (Array.isArray(data)) setRecentOrders(data.slice(0, 3));
+    } catch (err) {
+      console.error("Dashboard data fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [base, user?.email, user?.id]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!authLoading && user) fetchDashboardData();
+  }, [authLoading, user, fetchDashboardData, paymentVerified]);
 
   if (authLoading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-2 text-white">
         <Loader2 className="w-8 h-8 text-[#df6742] animate-spin" />
-        <p className="text-xs text-white/40">Securing user panel session...</p>
+        <p className="text-xs text-white/40">Loading your dashboard...</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto text-white">
+
+      {/* Payment Success Banner */}
+      {paymentVerified && (
+        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex items-center gap-3">
+          <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+          <p className="text-sm text-emerald-400 font-semibold">
+            Payment successful! Your artwork has been added to your collection.
+          </p>
+        </div>
+      )}
+
       {/* Welcome Banner */}
       <div className="bg-[#243239] p-6 sm:p-8 rounded-2xl border border-white/5 relative overflow-hidden shadow-xl">
-        <div className="absolute -right-12 -top-12 w-48 h-48 bg-[#df6742]/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -right-12 -top-12 w-48 h-48 bg-[#df6742]/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 space-y-2">
           <div className="inline-block px-2.5 py-0.5 bg-[#df6742]/10 border border-[#df6742]/20 rounded-md">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[#df6742]">
-              Buyer Account Portal
-            </span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[#df6742]">Buyer Account Portal</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black tracking-wide text-white">
             Hello, {user?.name || "Art Collector"}!
           </h1>
           <p className="text-white/60 text-xs sm:text-sm max-w-xl leading-relaxed">
-            Welcome to your **ArtHub** command center. Here you can easily manage your profile data, track transaction checkouts, and review acquired canvas masterpieces.
+            Welcome to your ArtHub dashboard. Track your purchases, manage your profile, and explore your art collection.
           </p>
         </div>
       </div>
 
-      {/* Analytics Counter Grid */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-[#243239] p-5 rounded-xl border border-white/5 flex items-center justify-between group hover:border-white/10 transition-all">
+        <div className="bg-[#243239] p-5 rounded-xl border border-white/5 flex items-center justify-between hover:border-white/10 transition-all">
           <div className="space-y-1">
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Total Orders</p>
             <h3 className="text-2xl font-black text-white">
@@ -93,7 +150,7 @@ export default function UserDashboardLanding() {
           <div className="space-y-1">
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Account Security</p>
             <h3 className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 mt-1">
-              <ShieldCheck className="w-4 h-4" /> System Verified
+              <ShieldCheck className="w-4 h-4" /> Verified
             </h3>
           </div>
           <div className="p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
@@ -103,9 +160,9 @@ export default function UserDashboardLanding() {
 
         <div className="bg-[#243239] p-5 rounded-xl border border-white/5 flex items-center justify-between hover:border-white/10 transition-all">
           <div className="space-y-1">
-            <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Primary Gateway</p>
+            <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Payment Gateway</p>
             <h3 className="text-xs font-black text-blue-400 flex items-center gap-1.5 mt-1 uppercase tracking-wider">
-              <CreditCard className="w-4 h-4" /> Stripe Sandbox
+              <CreditCard className="w-4 h-4" /> Stripe Secured
             </h3>
           </div>
           <div className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/10">
@@ -114,48 +171,39 @@ export default function UserDashboardLanding() {
         </div>
       </div>
 
-      {/* Main Split Layout */}
+      {/* Main Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Navigation Panel */}
+
+        {/* Quick Actions */}
         <div className="lg:col-span-1 bg-[#243239] p-5 rounded-xl border border-white/5 space-y-4 h-fit">
           <div>
             <h3 className="text-sm font-bold text-white uppercase tracking-wider">Quick Actions</h3>
-            <p className="text-[11px] text-white/40">Navigate seamlessly across your platform metrics</p>
+            <p className="text-[11px] text-white/40">Navigate your dashboard</p>
           </div>
-          
           <div className="space-y-2 pt-2">
-            <Link 
-              href="/dashboard/user/purchase-history" 
-              className="flex items-center justify-between p-3 bg-black/10 hover:bg-black/20 rounded-xl border border-white/5 transition-all group text-sm"
-            >
-              <span className="text-white/80 group-hover:text-[#df6742] transition-colors">Purchase History</span>
-              <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-[#df6742] group-hover:translate-x-1 transition-all" />
-            </Link>
-
-            <Link 
-              href="/dashboard/user/bought-artworks" 
-              className="flex items-center justify-between p-3 bg-black/10 hover:bg-black/20 rounded-xl border border-white/5 transition-all group text-sm"
-            >
-              <span className="text-white/80 group-hover:text-[#df6742] transition-colors">My Art Collection</span>
-              <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-[#df6742] group-hover:translate-x-1 transition-all" />
-            </Link>
-
-            <Link 
-              href="/dashboard/user/profile" 
-              className="flex items-center justify-between p-3 bg-black/10 hover:bg-black/20 rounded-xl border border-white/5 transition-all group text-sm"
-            >
-              <span className="text-white/80 group-hover:text-[#df6742] transition-colors">Edit Profile Settings</span>
-              <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-[#df6742] group-hover:translate-x-1 transition-all" />
-            </Link>
+            {[
+              { href: "/dashboard/user/purchase-history", label: "Purchase History" },
+              { href: "/dashboard/user/bought-artworks", label: "My Art Collection" },
+              { href: "/dashboard/user/profile", label: "Edit Profile" },
+            ].map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className="flex items-center justify-between p-3 bg-black/10 hover:bg-black/20 rounded-xl border border-white/5 transition-all group text-sm"
+              >
+                <span className="text-white/80 group-hover:text-[#df6742] transition-colors">{label}</span>
+                <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-[#df6742] group-hover:translate-x-1 transition-all" />
+              </Link>
+            ))}
           </div>
         </div>
 
-        {/* Recent Ledger Logs */}
+        {/* Recent Orders */}
         <div className="lg:col-span-2 bg-[#243239] p-5 rounded-xl border border-white/5 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-white uppercase tracking-wider">Recent Orders</h3>
-              <p className="text-[11px] text-white/40">Your last three completed checkout receipts</p>
+              <p className="text-[11px] text-white/40">Your last 3 purchases</p>
             </div>
             <Link href="/dashboard/user/purchase-history" className="text-xs font-bold text-[#df6742] hover:underline flex items-center gap-1">
               See All <ArrowRight className="w-3 h-3" />
@@ -170,25 +218,23 @@ export default function UserDashboardLanding() {
             ) : recentOrders.length === 0 ? (
               <div className="text-center py-8 bg-black/5 rounded-xl border border-white/5">
                 <Clock className="w-5 h-5 mx-auto text-white/20 mb-1" />
-                <p className="text-xs text-white/40">No records found. Try ordering your first artwork!</p>
+                <p className="text-xs text-white/40">No orders yet. Browse artworks to get started!</p>
               </div>
             ) : (
               recentOrders.map((order) => (
-                <div 
-                  key={order._id} 
+                <div
+                  key={order._id}
                   className="p-3.5 bg-black/10 rounded-xl border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
                 >
                   <div className="space-y-1">
-                    <p className="font-bold text-white/90">
-                      {order.artworkDetails?.title || "Exclusive Artwork Collection"}
-                    </p>
+                    <p className="font-bold text-white/90">{order.artworkTitle || "Artwork Purchase"}</p>
                     <p className="font-mono text-[10px] text-white/40 truncate max-w-md">
-                      ID: {order.transactionId}
+                      ID: {order.transactionId || order._id}
                     </p>
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 border-white/5 pt-2 sm:pt-0">
                     <span className="font-black text-emerald-400 text-sm">
-                      ${order.price ? Number(order.price).toFixed(2) : "0.00"}
+                      ${Number(order.price || order.amount || 0).toFixed(2)}
                     </span>
                     <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] uppercase font-bold border border-emerald-500/20">
                       {order.status || "paid"}
@@ -199,6 +245,7 @@ export default function UserDashboardLanding() {
             )}
           </div>
         </div>
+
       </div>
     </div>
   );

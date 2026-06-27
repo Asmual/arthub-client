@@ -1,183 +1,156 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, useCallback } from "react";
 import { authClient } from "@/lib/auth-client";
 import { FaExchangeAlt, FaSearch, FaCreditCard, FaCheckCircle, FaExclamationTriangle, FaDownload } from "react-icons/fa";
 import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
+// Fetch JWT from backend using BetterAuth session email
+const getAuthToken = async (base, email) => {
+  const res = await fetch(`${base}/api/users/generate-token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) throw new Error("Token generation failed.");
+  const { token } = await res.json();
+  return token;
+};
+
 export default function AdminTransactionsPage() {
-  const router = useRouter();
   const { data: session, isPending: authLoading } = authClient.useSession();
   const user = session?.user;
 
-  const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [transactions, setTransactions] = useState([]);
 
-  // Fix Hydration Error by ensuring client-only code runs after mounting
+  const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server.onrender.com").replace(/\/$/, "");
+
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  const fetchTransactions = useCallback(async () => {
+    if (!user?.email) return;
+    try {
+      setLoading(true);
+      const token = await getAuthToken(base, user.email);
+
+      const res = await fetch(`${base}/api/payment/all-transactions`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) throw new Error("Failed to fetch transactions.");
+      const data = await res.json();
+      setTransactions(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Transaction fetch error:", err);
+      toast.error("Could not load transaction history.");
+    } finally {
+      setLoading(false);
+    }
+  }, [base, user?.email]);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (mounted && !authLoading) {
-      if (!user) {
-        router.replace("/login");
-      } else if (user.role !== "admin") {
-        toast.error("Access Denied! Administrators only.");
-        router.replace("/dashboard");
-      }
-    }
-  }, [user, authLoading, router, mounted]);
-
-  useEffect(() => {
-    if (!mounted || !user || user.role !== "admin") return;
-
-    const fetchTransactions = async () => {
-      try {
-        setLoading(true);
-        const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server.onrender.com").replace(/\/$/, "");
-        const token = localStorage.getItem("token");
-
-        // Requesting with appropriate Authorization token and email context headers
-        const res = await fetch(`${base}/api/payment/all-transactions`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-            "email": user.email
-          }
-        });
-       
-        if (!res.ok) {
-          throw new Error("Failed to capture master gateway transactions telemetry");
-        }
-       
-        const data = await res.json();
-        setTransactions(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error("Ledger fetch execution error:", err);
-        toast.error("Could not sync transaction history.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTransactions();
-  }, [user, session, mounted]);
-
-  // Prevent UI rendering until component is safely mounted on the client
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-[#2f3f48] flex flex-col items-center justify-center gap-2 text-white">
-        <Loader2 className="w-8 h-8 text-[#df6742] animate-spin" />
-        <p className="text-xs text-white/40">Initializing marketplace workspace...</p>
-      </div>
-    );
-  }
-
-  if (authLoading || (!user || user.role !== "admin")) {
-    return (
-      <div className="min-h-screen bg-[#2f3f48] flex flex-col items-center justify-center gap-2 text-white">
-        <Loader2 className="w-8 h-8 text-[#df6742] animate-spin" />
-        <p className="text-xs text-white/40">Verifying administrator clearance status...</p>
-      </div>
-    );
-  }
+    if (!authLoading && user) fetchTransactions();
+  }, [authLoading, user, fetchTransactions]);
 
   const filteredTransactions = transactions.filter((txn) => {
-    const safeBuyerEmail = txn.buyerEmail || txn.userId || "";
-    const safeTransactionId = txn.transactionId || "";
-    const safeArtworkTitle = txn.artworkTitle || "";
-    const safeStatus = txn.status || "";
-
+    const q = searchTerm.toLowerCase();
     const matchesSearch =
-      safeBuyerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      safeTransactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      safeArtworkTitle.toLowerCase().includes(searchTerm.toLowerCase());
-     
-    const matchesStatus = statusFilter === "all" || safeStatus.toLowerCase() === statusFilter.toLowerCase();
-   
+      (txn.buyerEmail || "").toLowerCase().includes(q) ||
+      (txn.transactionId || "").toLowerCase().includes(q) ||
+      (txn.artworkTitle || "").toLowerCase().includes(q);
+    const matchesStatus = statusFilter === "all" || (txn.status || "").toLowerCase() === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
   const totalRevenue = transactions
-    .filter(t => t.status === "paid" || t.status === "succeeded")
+    .filter((t) => t.status === "paid" || t.status === "succeeded")
     .reduce((acc, curr) => acc + (Number(curr.price) || Number(curr.amount) || 0), 0);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#2f3f48] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#df6742] animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#2f3f48] p-6 sm:p-10 text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>
       <div className="max-w-6xl mx-auto space-y-8">
-       
+
+        {/* Header */}
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <FaExchangeAlt className="text-[#df6742] text-xl" /> Buyer Transaction Ledger
+            <FaExchangeAlt className="text-[#df6742] text-xl" /> Transaction Ledger
           </h1>
           <p className="text-xs text-white/40 mt-1">
-            Monitor incoming payment intents, dynamic checkout records, and verified Stripe processing invoices.
+            Monitor all platform payments and Stripe checkout records.
           </p>
         </div>
 
+        {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-[#243239] border border-white/5 rounded-2xl p-5 shadow-md">
-            <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Gross Revenue</p>
+            <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Revenue</p>
             <h3 className="text-2xl font-black text-emerald-400 mt-1">${totalRevenue.toFixed(2)}</h3>
           </div>
           <div className="bg-[#243239] border border-white/5 rounded-2xl p-5 shadow-md">
-            <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Statements</p>
-            <h3 className="text-2xl font-black text-white mt-1">{transactions.length} Invoices</h3>
+            <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Total Transactions</p>
+            <h3 className="text-2xl font-black text-white mt-1">{transactions.length}</h3>
           </div>
           <div className="bg-[#243239] border border-white/5 rounded-2xl p-5 shadow-md">
-            <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Gateway Status</p>
+            <p className="text-[10px] uppercase text-white/40 font-bold tracking-wider">Gateway</p>
             <h3 className="text-sm font-bold text-white mt-2 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Stripe Live Node Connected
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Stripe Connected
             </h3>
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#243239] border border-white/5 p-4 rounded-xl shadow-md">
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row items-center gap-4 bg-[#243239] border border-white/5 p-4 rounded-xl shadow-md">
           <div className="relative w-full sm:w-72">
             <input
               type="text"
-              placeholder="Search Email, Transaction ID, Title..."
+              placeholder="Search email, transaction ID, title..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-[#2f3f48] border border-white/8 rounded-xl pl-9 pr-4 py-2.5 text-xs focus:outline-none focus:border-[#df6742]/60 transition-all"
+              className="w-full bg-[#2f3f48] border border-white/8 rounded-xl pl-9 pr-4 py-2.5 text-xs focus:outline-none focus:border-[#df6742]/60 transition-all text-white"
             />
             <FaSearch className="absolute left-3 top-3.5 text-xs text-white/30" />
           </div>
-
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-[#2f3f48] border border-white/8 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-[#df6742]/60 cursor-pointer text-white/80 w-full sm:w-auto"
-            >
-              <option value="all">All Invoices</option>
-              <option value="paid">Paid</option>
-              <option value="failed">Failed</option>
-            </select>
-          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-[#2f3f48] border border-white/8 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-[#df6742]/60 cursor-pointer text-white/80 w-full sm:w-auto"
+          >
+            <option value="all">All</option>
+            <option value="paid">Paid</option>
+            <option value="failed">Failed</option>
+          </select>
         </div>
 
+        {/* Table */}
         <div className="bg-[#243239] border border-white/5 rounded-2xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
             {loading ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <Loader2 className="w-8 h-8 animate-spin text-[#df6742]" />
-                <p className="text-xs text-white/40 tracking-wider">Synchronizing secure payment records...</p>
+                <p className="text-xs text-white/40">Loading transactions...</p>
               </div>
             ) : (
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-white/4 border-b border-white/5 text-[11px] font-bold uppercase tracking-wider text-white/50">
-                    <th className="p-4 pl-6">Transaction ID / Buyer</th>
-                    <th className="p-4">Artwork Title</th>
+                    <th className="p-4 pl-6">Transaction / Buyer</th>
+                    <th className="p-4">Artwork</th>
                     <th className="p-4">Amount</th>
                     <th className="p-4">Method</th>
                     <th className="p-4">Status</th>
@@ -186,35 +159,26 @@ export default function AdminTransactionsPage() {
                 </thead>
                 <tbody className="divide-y divide-white/5 text-xs sm:text-sm">
                   {filteredTransactions.map((txn) => (
-                    <tr key={txn._id || txn.id} className="hover:bg-white/2 transition-colors duration-150 text-white/90">
-                     
+                    <tr key={txn._id || txn.id} className="hover:bg-white/2 transition-colors text-white/90">
                       <td className="p-4 pl-6 space-y-1">
-                        <p className="font-mono text-white/40 text-[11px] truncate max-w-40" title={txn.transactionId}>
-                          {txn.transactionId || "N/A"}
-                        </p>
-                        <p className="font-semibold text-white/80 truncate max-w-50">
-                          {txn.buyerEmail || "System Guest Buyer"}
-                        </p>
+                        <p className="font-mono text-white/40 text-[11px] truncate max-w-40">{txn.transactionId || "N/A"}</p>
+                        <p className="font-semibold text-white/80 truncate max-w-50">{txn.buyerEmail || "N/A"}</p>
                       </td>
-
-                      <td className="p-4 font-medium text-white/70 uppercase text-xs tracking-wider">
+                      <td className="p-4">
                         <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-blue-500/10 text-blue-400 max-w-40 truncate block">
-                          {txn.artworkTitle || "Gallery Asset"}
+                          {txn.artworkTitle || "Artwork"}
                         </span>
                       </td>
-
                       <td className="p-4 font-bold text-[#df6742]">
                         ${(Number(txn.price) || Number(txn.amount) || 0).toFixed(2)}
                       </td>
-
                       <td className="p-4 text-white/50 font-medium">
                         <span className="flex items-center gap-1">
                           <FaCreditCard className="text-[11px]" /> CARD
                         </span>
                       </td>
-
                       <td className="p-4">
-                        {txn.status === "paid" || txn.status === "succeeded" ? (
+                        {["paid", "succeeded"].includes(txn.status?.toLowerCase()) ? (
                           <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold px-2.5 py-1 rounded-md uppercase">
                             <FaCheckCircle /> Paid
                           </span>
@@ -224,28 +188,23 @@ export default function AdminTransactionsPage() {
                           </span>
                         )}
                       </td>
-
                       <td className="p-4 text-center pr-6">
                         <button
-                          onClick={() => toast.success(`Exporting Invoice Statement: ${txn._id || txn.id}`)}
+                          onClick={() => toast.success(`Invoice: ${txn._id || txn.id}`)}
                           className="p-2 bg-[#2f3f48] hover:bg-white/10 text-white/60 hover:text-white rounded-lg transition-colors border border-white/5"
-                          title="Download Statement"
+                          title="Download Receipt"
                         >
                           <FaDownload className="text-[11px]" />
                         </button>
                       </td>
-
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
           </div>
-
           {!loading && filteredTransactions.length === 0 && (
-            <p className="text-center text-xs text-white/30 py-12">
-              No matching transaction histories logged inside your payment gateway.
-            </p>
+            <p className="text-center text-xs text-white/30 py-12">No transactions found.</p>
           )}
         </div>
 
