@@ -27,7 +27,7 @@ export default function AdminTransactionsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [transactions, setTransactions] = useState([]);
 
-  const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server.onrender.com").replace(/\/$/, "");
+  const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server-z4w8.onrender.com").replace(/\/$/, "");
 
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const fetchTransactions = useCallback(async () => {

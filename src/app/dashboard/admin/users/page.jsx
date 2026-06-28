@@ -51,7 +51,7 @@ export default function AdminUsersDashboard() {
   const { data: session, isPending: authLoading } = authClient.useSession();
   const user = session?.user;
 
-  const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server.onrender.com").replace(/\/$/, "");
+  const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server-z4w8.onrender.com").replace(/\/$/, "");
 
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const fetchAllUsers = useCallback(async () => {

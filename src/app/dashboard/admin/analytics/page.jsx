@@ -24,7 +24,7 @@ export default function AnalyticsPage() {
   const { data: session, isPending: authLoading } = authClient.useSession();
   const user = session?.user;
 
-  const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server.onrender.com").replace(/\/$/, "");
+  const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server-z4w8.onrender.com").replace(/\/$/, "");
 
   const [loading, setLoading] = useState(true);
   const [metrics, setMetrics] = useState({

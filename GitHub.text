@@ -8,5 +8,5 @@ git push -u origin main
 
 
 git add .
-git commit -m "Admin Dashboard dynamically All Pagee: users, artworks, transactions, charts, profile management"
+git commit -m "Update README.md describing the project"
 git push

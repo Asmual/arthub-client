@@ -1,19 +1,10 @@
- 
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
-import {
-  Palette,
-  DollarSign,
-  PlusCircle,
-  ArrowRight,
-  Loader2,
-  TrendingUp,
-  ImageOff
-} from "lucide-react";
+import { Palette, DollarSign, PlusCircle, ArrowRight, Loader2, TrendingUp, ImageOff } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
@@ -26,7 +17,6 @@ export default function ArtistDashboard() {
   const [recentArtworks, setRecentArtworks] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Strictly bind routing access permissions to registered artists only
   useEffect(() => {
     if (!authLoading) {
       if (!user) {
@@ -43,12 +33,20 @@ export default function ArtistDashboard() {
 
     const fetchArtistData = async () => {
       try {
-        const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
-       
-        const statsResponse = await fetch(`${base}/api/artist/stats/${user.id}`);
+        setLoading(true);
+        const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server-z4w8.onrender.com").replace(/\/$/, "");
+        const targetToken = session?.token || "simulated-platform-admin-auth-token-string";
+        
+        const secureHeaders = {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${targetToken}`,
+          "email": user.email
+        };
+
+        const statsResponse = await fetch(`${base}/api/artist/stats/${user.id}`, { headers: secureHeaders });
         const statsData = await statsResponse.json();
 
-        const galleryResponse = await fetch(`${base}/api/artist/artworks/${user.id}`);
+        const galleryResponse = await fetch(`${base}/api/artist/artworks/${user.id}`, { headers: secureHeaders });
         const galleryData = await galleryResponse.json();
 
         if (statsResponse.ok && statsData) {
@@ -69,7 +67,7 @@ export default function ArtistDashboard() {
     };
 
     fetchArtistData();
-  }, [user]);
+  }, [user, session]);
 
   if (authLoading || (!user || user.role !== "artist")) {
     return (
@@ -101,7 +99,7 @@ export default function ArtistDashboard() {
           </div>
          
           <Link
-            href="/dashboard/artist/add-artwork"
+            href="/dashboard/artist/add-art"
             className="flex items-center gap-2 bg-[#df6742] hover:bg-[#c55332] text-white text-xs font-bold px-4 py-3 rounded-xl transition-all shadow-md active:scale-[0.98] shrink-0 h-fit w-fit"
           >
             <PlusCircle size={16} /> Upload Masterpiece
@@ -110,7 +108,6 @@ export default function ArtistDashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-       
         <div className="bg-[#243239] p-5 rounded-xl border border-white/5 flex items-center justify-between hover:border-white/10 transition-all group">
           <div className="space-y-1">
             <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Total Artwork Creations</p>
@@ -134,12 +131,10 @@ export default function ArtistDashboard() {
             <DollarSign className="w-5 h-5 text-emerald-400" />
           </div>
         </div>
-
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-       
-        <div className="lg:col-span-1 bg-[#243239] p-5 rounded-xl border border-white/5 space-y-4 h-fit">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="bg-[#243239] p-5 rounded-xl border border-white/5 space-y-4 h-fit">
           <div>
             <h3 className="text-sm font-bold text-white uppercase tracking-wider">Studio Navigation</h3>
             <p className="text-[11px] text-white/40">Manage your collections and profile metadata</p>
@@ -217,7 +212,6 @@ export default function ArtistDashboard() {
             )}
           </div>
         </div>
-
       </div>
     </div>
   );
