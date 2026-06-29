@@ -24,6 +24,7 @@ const FeaturedArtworks = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchFeaturedArtworks = async () => {
       try {
         setError(null);
@@ -35,22 +36,30 @@ const FeaturedArtworks = () => {
         if (!res.ok) throw new Error("Server responded with an unstable status.");
         const data = await res.json();
         
-        setArtworks(Array.isArray(data) ? data : []);
+        if (isMounted) {
+          setArtworks(Array.isArray(data) ? data : []);
+        }
       } catch (err) {
         console.error("Featured Artworks Fetch Error:", err);
-        setError("Could not load featured masterpieces. Please ensure backend services are active.");
+        if (isMounted) {
+          setError("Could not load featured masterpieces. Please ensure backend services are active.");
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     fetchFeaturedArtworks();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
     <section className="bg-[#2a3942] py-20 px-6 border-t border-white/5">
       <div className="max-w-6xl mx-auto">
         
-        {/* Section Header */}
         <div className="flex flex-col items-center text-center mb-16 max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-[#243239]/10 border border-[#df6742]/30 text-[#df6742] px-4 py-1.5 rounded-full text-[11px] font-bold tracking-wider mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-[#df6742]" />
@@ -78,7 +87,6 @@ const FeaturedArtworks = () => {
           )}
         </div>
 
-        {/* Dynamic Fallback States */}
         {error && (
           <div className="text-center py-16 max-w-md mx-auto">
             <p className="text-white/40 text-sm leading-relaxed">{error}</p>
@@ -89,63 +97,71 @@ const FeaturedArtworks = () => {
           <p className="text-center text-white/40 text-sm py-16">No recent artworks found.</p>
         )}
 
-        {/* Main Artwork Grid Showcase */}
-        {!error && artworks.length > 0 && (
+        {!error && (loading || artworks.length > 0) && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {loading
-              ? Array.from({ length: 6 }).map((_, i) => <ArtworkSkeleton key={i} />)
-              : artworks.map((artwork) => (
-                  <div
-                    key={artwork._id}
-                    className="bg-[#1e262b] rounded-2xl overflow-hidden border border-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl flex flex-col justify-between"
-                  >
-                    {/* Media Container */}
-                    <div className="relative aspect-4/3 w-full overflow-hidden bg-black/10">
-                      <img
-                        src={artwork.image || artwork.imageUrl}
-                        alt={artwork.title || "Artwork Masterpiece"}
-                        className="w-full h-full object-cover"
-                      />
-                      
-                      <div className="absolute top-4 left-4 flex gap-2">
-                        <span className="bg-black/60 backdrop-blur-md text-[10px] font-bold text-white px-2.5 py-1 rounded uppercase tracking-wider">
-                          {artwork.category || "Artwork"}
-                        </span>
-                      </div>
+              ? Array.from({ length: 3 }).map((_, i) => <ArtworkSkeleton key={i} />)
+              : artworks.map((artwork) => {
+                  const artId = artwork._id?.$oid || artwork._id?.toString() || artwork.id;
+                  const itemImage = artwork.image || artwork.imageUrl;
+                  
+                  // হ্যান্ডেল করা হলো আপনার ডেটাবেজের isSold ফিল্ডটি
+                  const isItemSold = artwork.isSold === true || artwork.status === "Sold";
 
-                      <div className="absolute top-4 right-4">
-                        <span className="bg-[#2ecc71] text-[10px] font-bold text-white px-2.5 py-1 rounded uppercase tracking-wider">
-                          {artwork.status || "Available"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Meta Metadata Content */}
-                    <div className="p-6 flex flex-col grow justify-between">
-                      <div>
-                        <h3 className="text-xl font-bold text-white truncate mb-1">
-                          {artwork.title}
-                        </h3>
-                        <p className="text-sm text-white/40 mb-6">
-                          By {artwork.artistName || "Unknown Artist"}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-between mt-auto pt-2">
-                        <span className="text-[#df6742] text-xl font-bold">
-                          ${artwork.price}
-                        </span>
+                  return (
+                    <div
+                      key={artId}
+                      className="bg-[#1e262b] rounded-2xl overflow-hidden border border-white/5 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl flex flex-col justify-between"
+                    >
+                      <div className="relative aspect-4/3 w-full overflow-hidden bg-black/10">
+                        {itemImage && (
+                          <img
+                            src={itemImage}
+                            alt={artwork.title || "Artwork Masterpiece"}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
                         
-                        <NextLink
-                          href={`/browse/${artwork._id}`}
-                          className="bg-[#df6742] hover:bg-[#c85734] text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors duration-200"
-                        >
-                          View Details
-                        </NextLink>
+                        <div className="absolute top-4 left-4 flex gap-2">
+                          <span className="bg-black/60 backdrop-blur-md text-[10px] font-bold text-white px-2.5 py-1 rounded uppercase tracking-wider">
+                            {artwork.category || "Artwork"}
+                          </span>
+                        </div>
+
+                        {/* ডাইনামিক ব্যাজ কালার এবং স্ট্যাটাস চেঞ্জার */}
+                        <div className="absolute top-4 right-4">
+                          <span className={`text-[10px] font-bold text-white px-2.5 py-1 rounded uppercase tracking-wider ${isItemSold ? "bg-red-500" : "bg-[#2ecc71]"}`}>
+                            {isItemSold ? "Sold Out" : "Available"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-6 flex flex-col grow justify-between">
+                        <div>
+                          <h3 className="text-xl font-bold text-white truncate mb-1">
+                            {artwork.title || "Untitled Masterpiece"}
+                          </h3>
+                          <p className="text-sm text-white/40 mb-6">
+                            By {artwork.artistName || "Unknown Artist"}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center justify-between mt-auto pt-2">
+                          <span className="text-[#df6742] text-xl font-bold">
+                            ${artwork.price || "0"}
+                          </span>
+                          
+                          <NextLink
+                            href={`/browse/${artId}`}
+                            className="bg-[#df6742] hover:bg-[#c85734] text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors duration-200"
+                          >
+                            View Details
+                          </NextLink>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
           </div>
         )}
 
