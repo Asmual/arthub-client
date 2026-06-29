@@ -1,29 +1,44 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
 import {
-  Users, Palette, CreditCard, DollarSign,
-  ArrowUpRight, Activity, Loader2
+  Users,
+  Palette,
+  CreditCard,
+  DollarSign,
+  ArrowUpRight,
+  Activity,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
+
+// Same-origin Next.js proxy endpoint. Browser cookies are sent automatically,
+// proxy injects ADMIN_PROXY_SECRET + user headers, then forwards to backend.
+const DASHBOARD_STATS_ENDPOINT = "/api/admin/dashboard-stats";
+
+const initialDashboardData = {
+  totalUsers: 0,
+  verifiedArtworks: 0,
+  transactionsCount: 0,
+  platformRevenue: 0,
+  recentSales: [],
+};
 
 export default function AdminDashboardOverview() {
   const router = useRouter();
   const { data: session, isPending: authLoading } = authClient.useSession();
+
   const user = session?.user;
 
-  const [loading, setLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState({
-    totalUsers: 0,
-    verifiedArtworks: 0,
-    transactionsCount: 0,
-    platformRevenue: 0,
-    recentSales: [],
-  });
+  const [loading, setLoading] = useState(false);
+  const [dashboardData, setDashboardData] = useState(initialDashboardData);
+  const [errorMessage, setErrorMessage] = useState("");
 
+  // Auth + role guard
   useEffect(() => {
     if (authLoading) return;
 
@@ -35,194 +50,240 @@ export default function AdminDashboardOverview() {
     if (user.role !== "admin") {
       toast.error("Unauthorized access.");
       router.replace("/dashboard");
-      return;
     }
+  }, [authLoading, user, router]);
+
+  // Fetch dashboard metrics through same-origin proxy
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || user.role !== "admin") return;
+
+    let isMounted = true;
+    const controller = new AbortController();
 
     const loadDashboardMetrics = async () => {
       try {
         setLoading(true);
-        const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
+        setErrorMessage("");
 
-        // Step 1: Get JWT from backend using BetterAuth session user email
-        const tokenRes = await fetch(`${base}/api/users/generate-token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: user.email }),
-        });
-
-        if (!tokenRes.ok) {
-          throw new Error("Failed to authenticate session with server.");
-        }
-
-        const { token } = await tokenRes.json();
-
-        // Step 2: Fetch dashboard stats using the JWT token
-        const res = await fetch(`${base}/api/admin/dashboard-stats`, {
+        const res = await fetch(DASHBOARD_STATS_ENDPOINT, {
           method: "GET",
+          credentials: "include",
+          signal: controller.signal,
           headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
+            Accept: "application/json",
           },
         });
 
+        const contentType = res.headers.get("content-type") || "";
+        const responseBody = contentType.includes("application/json")
+          ? await res.json()
+          : await res.text();
+
         if (!res.ok) {
-          throw new Error(`Dashboard stats fetch failed with status: ${res.status}`);
+          const message =
+            typeof responseBody === "object"
+              ? responseBody?.message || responseBody?.error
+              : responseBody;
+
+          throw new Error(
+            message || `Dashboard stats fetch failed with status: ${res.status}`
+          );
         }
 
-        const data = await res.json();
+        if (!isMounted) return;
 
         setDashboardData({
-          totalUsers: data.totalUsers || 0,
-          verifiedArtworks: data.verifiedArtworks || 0,
-          transactionsCount: data.transactionsCount || 0,
-          platformRevenue: data.platformRevenue || 0,
-          recentSales: data.recentSales || [],
+          totalUsers: Number(responseBody?.totalUsers || 0),
+          verifiedArtworks: Number(responseBody?.verifiedArtworks || 0),
+          transactionsCount: Number(responseBody?.transactionsCount || 0),
+          platformRevenue: Number(responseBody?.platformRevenue || 0),
+          recentSales: Array.isArray(responseBody?.recentSales)
+            ? responseBody.recentSales
+            : [],
         });
       } catch (err) {
+        if (err.name === "AbortError") return;
+
         console.error("Dashboard metrics load error:", err);
-        toast.error("Failed to load dashboard data.");
+
+        if (!isMounted) return;
+
+        const message =
+          err?.message || "Failed to load dashboard data. Please try again.";
+
+        setErrorMessage(message);
+        toast.error(message);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadDashboardMetrics();
-  }, [user, authLoading, router]);
 
-  const stats = [
-    {
-      label: "Total Users",
-      value: dashboardData.totalUsers.toLocaleString(),
-      icon: Users,
-      change: "Registered accounts",
-      color: "text-[#df6742]",
-    },
-    {
-      label: "Verified Artworks",
-      value: dashboardData.verifiedArtworks.toLocaleString(),
-      icon: Palette,
-      change: "Live gallery listings",
-      color: "text-blue-400",
-    },
-    {
-      label: "Transactions",
-      value: dashboardData.transactionsCount.toLocaleString(),
-      icon: CreditCard,
-      change: "Successful purchases",
-      color: "text-amber-400",
-    },
-    {
-      label: "Platform Revenue",
-      value: `$${dashboardData.platformRevenue.toLocaleString(undefined, {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`,
-      icon: DollarSign,
-      change: "Gross volume processed",
-      color: "text-emerald-400",
-    },
-  ];
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [authLoading, user]);
+
+  const stats = useMemo(
+    () => [
+      {
+        label: "Total Users",
+        value: dashboardData.totalUsers.toLocaleString(),
+        icon: Users,
+        change: "Registered accounts",
+        color: "text-[#df6742]",
+      },
+      {
+        label: "Verified Artworks",
+        value: dashboardData.verifiedArtworks.toLocaleString(),
+        icon: Palette,
+        change: "Live gallery listings",
+        color: "text-blue-400",
+      },
+      {
+        label: "Transactions",
+        value: dashboardData.transactionsCount.toLocaleString(),
+        icon: CreditCard,
+        change: "Successful purchases",
+        color: "text-amber-400",
+      },
+      {
+        label: "Platform Revenue",
+        value: `$${dashboardData.platformRevenue.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`,
+        icon: DollarSign,
+        change: "Gross volume processed",
+        color: "text-emerald-400",
+      },
+    ],
+    [dashboardData]
+  );
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-white">
+      <div className="flex items-center justify-center min-h-[60vh] flex-col gap-3 text-gray-400">
         <Loader2 className="w-8 h-8 animate-spin text-[#df6742]" />
-        <p className="text-xs font-medium text-white/50 tracking-wide">Loading dashboard data...</p>
+        <p>Loading dashboard data...</p>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-6 max-w-7xl mx-auto p-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+  if (!user || user.role !== "admin") {
+    return null;
+  }
 
-      {/* Header */}
-      <div className="bg-[#243239] p-6 rounded-2xl border border-white/5 flex flex-col justify-between md:flex-row md:items-center gap-4 shadow-lg">
+  return (
+    <div className="space-y-8 p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-wide">System Administration Overview</h1>
-          <p className="text-white/50 text-sm mt-1">
-            Full platform oversight: manage users, verify listings, and monitor growth.
+          <h1 className="text-2xl font-bold text-white">
+            System Administration Overview
+          </h1>
+          <p className="text-gray-400 mt-1">
+            Full platform oversight: manage users, verify listings, and monitor
+            growth.
           </p>
         </div>
-        <div className="inline-flex items-center gap-1.5 bg-[#df6742]/10 border border-[#df6742]/30 text-[#df6742] font-semibold text-xs px-4 py-2 rounded-xl h-fit w-fit">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#df6742] animate-pulse" />
+
+        <div className="flex items-center gap-2 text-sm text-emerald-400">
+          <Activity className="w-4 h-4" />
           Live Status Active
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, i) => {
+      {errorMessage && (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-red-200 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
+          <div>
+            <p className="font-medium">Dashboard data load failed</p>
+            <p className="text-sm text-red-200/80 mt-1">{errorMessage}</p>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((stat) => {
           const Icon = stat.icon;
+
           return (
             <div
-              key={i}
-              className="bg-[#243239] p-5 rounded-2xl border border-white/5 flex flex-col justify-between gap-4 shadow-md hover:border-white/10 transition-all"
+              key={stat.label}
+              className="bg-[#1e2a30] border border-white/5 rounded-xl p-5"
             >
               <div className="flex items-center justify-between">
-                <span className="text-white/40 text-xs uppercase font-bold tracking-wider">{stat.label}</span>
-                <div className={`p-2.5 rounded-xl bg-white/5 border border-white/5 ${stat.color}`}>
-                  <Icon size={18} />
-                </div>
+                <span className="text-sm text-gray-400">{stat.label}</span>
+                <Icon className={`w-5 h-5 ${stat.color}`} />
               </div>
-              <div>
-                <h3 className="text-2xl font-extrabold text-white tracking-tight">{stat.value}</h3>
-                <p className="text-white/40 text-[11px] font-medium mt-1 tracking-wide">{stat.change}</p>
+
+              <div className="mt-3">
+                <p className="text-2xl font-bold text-white">{stat.value}</p>
+                <p className="text-xs text-gray-500 mt-1">{stat.change}</p>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Recent Sales + Chart Link */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-[#1e2a30] border border-white/5 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-white">Recent Sales</h2>
 
-        {/* Recent Sales Table */}
-        <div className="lg:col-span-7 bg-[#243239] p-6 rounded-2xl border border-white/5 shadow-xl space-y-4">
-          <div className="flex items-center justify-between border-b border-white/5 pb-3">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <Activity size={16} className="text-[#df6742]" /> Recent Sales
-            </h3>
             <Link
-              href="/dashboard/admin/transactions"
-              className="text-xs text-[#df6742] hover:underline flex items-center gap-0.5 font-medium"
+              href="/admin/sales"
+              className="text-sm text-[#df6742] flex items-center gap-1"
             >
-              View All <ArrowUpRight size={14} />
+              View All <ArrowUpRight className="w-4 h-4" />
             </Link>
           </div>
 
           <div className="space-y-3">
             {dashboardData.recentSales.length === 0 ? (
-              <div className="text-center py-10 bg-black/5 rounded-xl border border-dashed border-white/5">
-                <p className="text-sm text-white/40">No recent sales records found.</p>
+              <div className="text-center py-8">
+                <p className="text-gray-500 text-sm">
+                  No recent sales records found.
+                </p>
               </div>
             ) : (
               dashboardData.recentSales.map((sale, idx) => (
                 <div
-                  key={idx}
-                  className="bg-[#2f3f48] border border-white/4 p-4 rounded-xl flex items-center justify-between gap-4 hover:bg-[#2a3941] transition-all"
+                  key={sale._id || sale.id || sale.transactionId || idx}
+                  className="flex items-center justify-between gap-4 border-b border-white/5 pb-3"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[10px] text-white/40 font-mono truncate">
-                      {sale.transactionId || sale._id || sale.id}
+                  <div className="min-w-0">
+                    <p className="text-xs text-gray-500 truncate">
+                      {sale.transactionId || sale._id || sale.id || "N/A"}
                     </p>
-                    <h4 className="text-sm font-bold text-white truncate mt-0.5">
-                      {sale.artworkTitle || "Artwork Purchase"}
-                    </h4>
-                    <p className="text-xs text-white/50 truncate">{sale.buyerEmail || "N/A"}</p>
+                    <p className="text-sm text-white truncate">
+                      {sale.artworkTitle ||
+                        sale.artworkName ||
+                        "Artwork Purchase"}
+                    </p>
+                    <p className="text-xs text-gray-400 truncate">
+                      {sale.buyerEmail || sale.email || "N/A"}
+                    </p>
                   </div>
+
                   <div className="text-right shrink-0">
-                    <span className="text-sm font-black text-emerald-400">
-                      ${Number(sale.price || sale.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                    </span>
-                    <span
-                      className={`block text-[9px] font-bold uppercase mt-1 px-1.5 py-0.5 rounded text-center ${
-                        ["paid", "succeeded"].includes(sale.status?.toLowerCase())
-                          ? "bg-emerald-500/10 text-emerald-400"
-                          : "bg-amber-500/10 text-amber-400"
-                      }`}
-                    >
+                    <p className="text-sm font-semibold text-emerald-400">
+                      $
+                      {Number(
+                        sale.price || sale.amount || sale.totalAmount || 0
+                      ).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </p>
+                    <p className="text-xs text-gray-500">
                       {sale.status || "Success"}
-                    </span>
+                    </p>
                   </div>
                 </div>
               ))
@@ -230,27 +291,30 @@ export default function AdminDashboardOverview() {
           </div>
         </div>
 
-        {/* Charts CTA */}
-        <div className="lg:col-span-5 bg-[#243239] p-6 rounded-2xl border border-white/5 shadow-xl flex flex-col justify-between">
+        <div className="bg-[#1e2a30] border border-white/5 rounded-xl p-5 flex flex-col justify-between">
           <div>
-            <h2 className="text-sm font-bold text-white uppercase tracking-wider">Analytics & Charts</h2>
-            <p className="text-white/40 text-xs mt-1">
+            <h2 className="text-lg font-semibold text-white">
+              Analytics & Charts
+            </h2>
+            <p className="text-sm text-gray-400 mt-1">
               Sales trends, category breakdown, and revenue distribution charts.
             </p>
           </div>
-          <div className="flex-1 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-xl mt-4 p-6 bg-black/5 text-center gap-3">
-            <p className="text-white/40 text-xs max-w-xs leading-relaxed">
-              View Stripe-linked financial charts and artwork category analytics in the charts module.
+
+          <div className="mt-6">
+            <p className="text-xs text-gray-500 mb-3">
+              View Stripe-linked financial charts and artwork category analytics
+              in the charts module.
             </p>
+
             <Link
-              href="/dashboard/admin/charts"
-              className="inline-flex items-center gap-1.5 bg-[#df6742] hover:bg-[#c85633] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md transition-all uppercase tracking-wide"
+              href="/admin/charts"
+              className="inline-flex items-center gap-2 bg-[#df6742] hover:bg-[#c95835] text-white px-4 py-2 rounded-lg text-sm"
             >
-              Launch Charts <ArrowUpRight size={14} />
+              Launch Charts <ArrowUpRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
-
       </div>
     </div>
   );

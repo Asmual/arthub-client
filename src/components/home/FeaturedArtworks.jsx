@@ -29,7 +29,7 @@ const FeaturedArtworks = () => {
         setError(null);
         setLoading(true);
         
-        const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server.onrender.com").replace(/\/$/, "");
+        const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server-z4w8.onrender.com").replace(/\/$/, "");
         const res = await fetch(`${base}/api/artworks/featured`);
         
         if (!res.ok) throw new Error("Server responded with an unstable status.");

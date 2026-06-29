@@ -35,7 +35,7 @@ const ReviewSection = ({ artworkId, currentUser, hasPaid, isAdmin, isArtist }) =
   const [showToast, setShowToast] = useState(false);
   const [, setTimeTicker] = useState(Date.now());
 
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://arthub-server.onrender.com";
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://arthub-server-z4w8.onrender.com";
   const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
   const triggerToast = (message) => {

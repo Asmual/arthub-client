@@ -1,245 +1,222 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import React, { useState, useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
-import {
-  ShoppingBag, User as UserIcon, ShieldCheck,
-  ArrowRight, Loader2, CreditCard, Clock, CheckCircle
-} from "lucide-react";
-import Link from "next/link";
+import { ShoppingCart, MessageSquare, Star, Trash2, ShieldCheck, User } from "lucide-react";
 import toast from "react-hot-toast";
 
-// Fetch JWT from backend using BetterAuth session email
-const getAuthToken = async (base, email) => {
-  const res = await fetch(`${base}/api/users/generate-token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
-  if (!res.ok) throw new Error("Token generation failed.");
-  const { token } = await res.json();
-  return token;
-};
+export default function ArtworkDetailsClient({ artwork }) {
+  const { data: session } = authClient.useSession();
+  const currentUser = session?.user;
+  
+  const [reviews, setReviews] = useState([]);
+  const [comment, setComment] = useState("");
+  const [rating, setRating] = useState(5);
+  const [submitting, setSubmitting] = useState(false);
 
-export default function UserDashboardLanding() {
-  const { data: session, isPending: authLoading } = authClient.useSession();
-  const user = session?.user;
-  const searchParams = useSearchParams();
-
-  const [recentOrders, setRecentOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [paymentVerified, setPaymentVerified] = useState(false);
-
+  const isSold = artwork.status?.toLowerCase() === "sold" || artwork.totalSold >= artwork.totalArtworks;
   const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
 
-  // Verify Stripe payment if session_id exists in URL
+  // ১. এই আর্টওয়ার্কের নির্দিষ্ট রিভিউগুলো লোড করার ইফেক্ট
   useEffect(() => {
-    const sessionId = searchParams.get("session_id");
-    if (!sessionId || !user?.email) return;
-
-    const verifyPayment = async () => {
+    const fetchReviews = async () => {
       try {
-        const token = await getAuthToken(base, user.email);
-        const res = await fetch(`${base}/api/payment/verify-payment-sync`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`,
-          },
-          body: JSON.stringify({ sessionId }),
-        });
-
+        const res = await fetch(`${base}/api/reviews/artwork/${artwork._id}`);
         if (res.ok) {
-          setPaymentVerified(true);
-          toast.success("Payment verified! Your artwork has been added to your collection.");
-          // Remove session_id from URL without reload
-          window.history.replaceState({}, "", "/dashboard/user");
+          const data = await res.json();
+          setReviews(data);
         }
       } catch (err) {
-        console.error("Payment verification error:", err);
+        console.error("Failed to fetch reviews:", err);
       }
     };
+    fetchReviews();
+  }, [artwork._id, base]);
 
-    verifyPayment();
-  }, [searchParams, user?.email, base]);
+  // ২. রিভিউ সাবমিট করার হ্যান্ডলার (এক্সপ্রেস ব্যাকএন্ড JWT প্রটেকশনসহ)
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!currentUser) {
+      toast.error("Please login to leave a review!");
+      return;
+    }
+    if (!comment.trim()) return;
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
-  const fetchDashboardData = useCallback(async () => {
-    if (!user?.email) return;
     try {
-      setLoading(true);
-      const token = await getAuthToken(base, user.email);
+      setSubmitting(true);
+      
+      // এক্সপ্রেস ব্যাকএন্ডের জন্য টোকেন জেনারেট
+      const tokenRes = await fetch(`${base}/api/users/generate-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: currentUser.email }),
+      });
+      const { token } = await tokenRes.json();
 
-      const res = await fetch(`${base}/api/payment/history/${user.id || user.email}`, {
-        method: "GET",
+      const res = await fetch(`${base}/api/reviews/add`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
+          "Authorization": `Bearer ${token}`
         },
+        body: JSON.stringify({
+          artworkId: artwork._id,
+          rating,
+          comment,
+          userEmail: currentUser.email,
+          userName: currentUser.name
+        }),
       });
 
-      if (!res.ok) throw new Error("Failed to fetch orders.");
-      const data = await res.json();
-      if (Array.isArray(data)) setRecentOrders(data.slice(0, 3));
+      if (res.ok) {
+        const newReview = await res.json();
+        setReviews((prev) => [newReview, ...prev]);
+        setComment("");
+        toast.success("Review posted successfully!");
+      } else {
+        toast.error("Could not post review. Try again.");
+      }
     } catch (err) {
-      console.error("Dashboard data fetch error:", err);
+      console.error(err);
+      toast.error("An error occurred.");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
-  }, [base, user?.email, user?.id]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!authLoading && user) fetchDashboardData();
-  }, [authLoading, user, fetchDashboardData, paymentVerified]);
-
-  if (authLoading) {
-    return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-2 text-white">
-        <Loader2 className="w-8 h-8 text-[#df6742] animate-spin" />
-        <p className="text-xs text-white/40">Loading your dashboard...</p>
-      </div>
-    );
-  }
+  };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto text-white">
-
-      {/* Payment Success Banner */}
-      {paymentVerified && (
-        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
-          <p className="text-sm text-emerald-400 font-semibold">
-            Payment successful! Your artwork has been added to your collection.
-          </p>
-        </div>
-      )}
-
-      {/* Welcome Banner */}
-      <div className="bg-[#243239] p-6 sm:p-8 rounded-2xl border border-white/5 relative overflow-hidden shadow-xl">
-        <div className="absolute -right-12 -top-12 w-48 h-48 bg-[#df6742]/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 space-y-2">
-          <div className="inline-block px-2.5 py-0.5 bg-[#df6742]/10 border border-[#df6742]/20 rounded-md">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[#df6742]">Buyer Account Portal</span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-wide text-white">
-            Hello, {user?.name || "Art Collector"}!
-          </h1>
-          <p className="text-white/60 text-xs sm:text-sm max-w-xl leading-relaxed">
-            Welcome to your ArtHub dashboard. Track your purchases, manage your profile, and explore your art collection.
-          </p>
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-[#243239] p-5 rounded-xl border border-white/5 flex items-center justify-between hover:border-white/10 transition-all">
-          <div className="space-y-1">
-            <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Total Orders</p>
-            <h3 className="text-2xl font-black text-white">
-              {loading ? <Loader2 className="w-5 h-5 animate-spin text-[#df6742]" /> : recentOrders.length}
-            </h3>
-          </div>
-          <div className="p-3 bg-[#df6742]/10 rounded-xl border border-[#df6742]/20">
-            <ShoppingBag className="w-5 h-5 text-[#df6742]" />
-          </div>
+    <div className="min-h-screen bg-[#1e292f] text-white p-6 sm:p-12">
+      <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10">
+        
+        {/* বাম পাশ: আর্টওয়ার্ক ইমেজ */}
+        <div className="bg-[#243239] rounded-2xl overflow-hidden border border-white/5 shadow-2xl flex items-center justify-center p-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img 
+            src={artwork.image || "/placeholder-art.jpg"} 
+            alt={artwork.title || "Artwork"} 
+            className="rounded-xl max-h-[500px] object-contain w-full hover:scale-[1.01] transition-all"
+          />
         </div>
 
-        <div className="bg-[#243239] p-5 rounded-xl border border-white/5 flex items-center justify-between hover:border-white/10 transition-all">
-          <div className="space-y-1">
-            <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Account Security</p>
-            <h3 className="text-xs font-bold text-emerald-400 flex items-center gap-1.5 mt-1">
-              <ShieldCheck className="w-4 h-4" /> Verified
-            </h3>
-          </div>
-          <div className="p-3 bg-emerald-500/5 rounded-xl border border-emerald-500/10">
-            <UserIcon className="w-5 h-5 text-emerald-400" />
-          </div>
-        </div>
-
-        <div className="bg-[#243239] p-5 rounded-xl border border-white/5 flex items-center justify-between hover:border-white/10 transition-all">
-          <div className="space-y-1">
-            <p className="text-xs font-bold text-white/40 uppercase tracking-wider">Payment Gateway</p>
-            <h3 className="text-xs font-black text-blue-400 flex items-center gap-1.5 mt-1 uppercase tracking-wider">
-              <CreditCard className="w-4 h-4" /> Stripe Secured
-            </h3>
-          </div>
-          <div className="p-3 bg-blue-500/5 rounded-xl border border-blue-500/10">
-            <CreditCard className="w-5 h-5 text-blue-400" />
-          </div>
-        </div>
-      </div>
-
-      {/* Main Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Quick Actions */}
-        <div className="lg:col-span-1 bg-[#243239] p-5 rounded-xl border border-white/5 space-y-4 h-fit">
-          <div>
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider">Quick Actions</h3>
-            <p className="text-[11px] text-white/40">Navigate your dashboard</p>
-          </div>
-          <div className="space-y-2 pt-2">
-            {[
-              { href: "/dashboard/user/purchase-history", label: "Purchase History" },
-              { href: "/dashboard/user/bought-artworks", label: "My Art Collection" },
-              { href: "/dashboard/user/profile", label: "Edit Profile" },
-            ].map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className="flex items-center justify-between p-3 bg-black/10 hover:bg-black/20 rounded-xl border border-white/5 transition-all group text-sm"
-              >
-                <span className="text-white/80 group-hover:text-[#df6742] transition-colors">{label}</span>
-                <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-[#df6742] group-hover:translate-x-1 transition-all" />
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* Recent Orders */}
-        <div className="lg:col-span-2 bg-[#243239] p-5 rounded-xl border border-white/5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Recent Orders</h3>
-              <p className="text-[11px] text-white/40">Your last 3 purchases</p>
+        {/* ডান পাশ: আর্টওয়ার্কের ডিটেইলস ও পারচেজ বাটন */}
+        <div className="space-y-6 flex flex-col justify-between">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${isSold ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
+                {isSold ? "Sold Out" : "Available"}
+              </span>
+              <span className="text-sm font-mono text-white/40">Specialty: {artwork.specialty || "N/A"}</span>
             </div>
-            <Link href="/dashboard/user/purchase-history" className="text-xs font-bold text-[#df6742] hover:underline flex items-center gap-1">
-              See All <ArrowRight className="w-3 h-3" />
-            </Link>
+
+            <h1 className="text-3xl sm:text-4xl font-black tracking-wide">{artwork.title || "Untitled Masterpiece"}</h1>
+            
+            {/* আর্টিস্ট প্রোফাইল সাব-কার্ড */}
+            {artwork.artist && (
+              <div className="flex items-center gap-3 bg-[#243239] p-3 rounded-xl border border-white/5 w-fit">
+                <div className="w-10 h-10 rounded-full bg-[#df6742]/20 flex items-center justify-center text-[#df6742] font-bold">
+                  {artwork.artist.name?.[0] || <User />}
+                </div>
+                <div>
+                  <p className="text-xs text-white/40">Created By</p>
+                  <p className="text-sm font-bold text-white">{artwork.artist.name}</p>
+                </div>
+              </div>
+            )}
+
+            <p className="text-white/70 text-sm leading-relaxed bg-[#243239]/40 p-4 rounded-xl border border-white/5">
+              {artwork.bio || artwork.description || "No description provided for this artwork."}
+            </p>
           </div>
 
-          <div className="space-y-2.5 pt-1">
-            {loading ? (
-              <div className="flex justify-center py-6">
-                <Loader2 className="w-6 h-6 animate-spin text-[#df6742]" />
-              </div>
-            ) : recentOrders.length === 0 ? (
-              <div className="text-center py-8 bg-black/5 rounded-xl border border-white/5">
-                <Clock className="w-5 h-5 mx-auto text-white/20 mb-1" />
-                <p className="text-xs text-white/40">No orders yet. Browse artworks to get started!</p>
-              </div>
+          {/* প্রাইজ এবং অ্যাকশন এরিয়া */}
+          <div className="bg-[#243239] p-6 rounded-2xl border border-white/5 space-y-4 shadow-lg">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm text-white/40 font-bold uppercase">Price</span>
+              <span className="text-3xl font-black text-[#df6742]">${Number(artwork.price || 0).toFixed(2)}</span>
+            </div>
+
+            <button
+              disabled={isSold}
+              className={`w-full py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg ${isSold ? 'bg-white/5 text-white/20 cursor-not-allowed' : 'bg-[#df6742] hover:bg-[#c95633] text-white active:scale-[0.99]'}`}
+            >
+              <ShoppingCart className="w-5 h-5" />
+              {isSold ? "Artwork Already Sold" : "Purchase Artwork via Stripe"}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* --- রিভিউ ও কমেন্ট সেকশন --- */}
+      <div className="max-w-6xl mx-auto mt-16 border-t border-white/5 pt-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
+        
+        {/* রিভিউ দেওয়ার ফর্ম */}
+        <div className="lg:col-span-1 bg-[#243239] p-5 rounded-xl border border-white/5 h-fit space-y-4">
+          <div>
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-[#df6742]" /> Leave a Review
+            </h3>
+            <p className="text-xs text-white/40">Share your thoughts on this artwork</p>
+          </div>
+
+          <form onSubmit={handleReviewSubmit} className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-xs text-white/60 font-medium">Rating</label>
+              <select 
+                value={rating} 
+                onChange={(e) => setRating(Number(e.target.value))}
+                className="w-full bg-black/20 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#df6742]"
+              >
+                {[5, 4, 3, 2, 1].map((num) => (
+                  <option key={num} value={num} className="bg-[#243239]">{num} Stars</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs text-white/60 font-medium">Comment</label>
+              <textarea
+                rows="4"
+                value={comment}
+                onChange={(e) => setComment(e.target.value)}
+                placeholder="Write your feedback..."
+                className="w-full bg-black/20 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#df6742] placeholder:text-white/20"
+              ></textarea>
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full py-2.5 bg-white/10 hover:bg-[#df6742] border border-white/10 hover:border-transparent text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"
+            >
+              {submitting ? "Posting..." : "Submit Review"}
+            </button>
+          </form>
+        </div>
+
+        {/* রিভিউ লিস্ট ডিসপ্লে */}
+        <div className="lg:col-span-2 space-y-4">
+          <h3 className="text-base font-bold text-white">Collector Reviews ({reviews.length})</h3>
+          
+          <div className="space-y-3 max-h-[450px] overflow-y-auto pr-2 custom-scrollbar">
+            {reviews.length === 0 ? (
+              <p className="text-xs text-white/30 italic py-6">No reviews yet for this masterpiece. Be the first to share your opinion!</p>
             ) : (
-              recentOrders.map((order) => (
-                <div
-                  key={order._id}
-                  className="p-3.5 bg-black/10 rounded-xl border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                >
-                  <div className="space-y-1">
-                    <p className="font-bold text-white/90">{order.artworkTitle || "Artwork Purchase"}</p>
-                    <p className="font-mono text-[10px] text-white/40 truncate max-w-md">
-                      ID: {order.transactionId || order._id}
-                    </p>
+              reviews.map((rev) => (
+                <div key={rev._id} className="p-4 bg-[#243239]/60 rounded-xl border border-white/5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-full bg-[#df6742]/10 text-[#df6742] flex items-center justify-center text-[10px] font-bold">
+                        {rev.userName?.[0] || "U"}
+                      </div>
+                      <span className="text-xs font-bold text-white/80">{rev.userName || "Anonymous"}</span>
+                    </div>
+                    <div className="flex items-center gap-0.5 text-amber-400">
+                      {[...Array(rev.rating)].map((_, i) => (
+                        <Star key={i} className="w-3 h-3 fill-current" />
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 border-white/5 pt-2 sm:pt-0">
-                    <span className="font-black text-emerald-400 text-sm">
-                      ${Number(order.price || order.amount || 0).toFixed(2)}
-                    </span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] uppercase font-bold border border-emerald-500/20">
-                      {order.status || "paid"}
-                    </span>
-                  </div>
+                  <p className="text-xs text-white/60 leading-relaxed pl-8">{rev.comment}</p>
                 </div>
               ))
             )}

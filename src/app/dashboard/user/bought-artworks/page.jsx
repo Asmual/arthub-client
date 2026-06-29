@@ -96,6 +96,7 @@ export default function BoughtArtworksPage() {
                 {/* Artwork Image Container */}
                 <div className="relative aspect-4/3 bg-black/20 w-full overflow-hidden border-b border-white/5">
                   {artwork?.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img 
                       src={artwork.image} 
                       alt={artwork.title || "Purchased Artwork"} 

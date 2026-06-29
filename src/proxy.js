@@ -4,20 +4,18 @@ export async function proxy(request) {
   const { pathname } = request.nextUrl;
   const isDashboardRoute = pathname.startsWith("/dashboard");
 
+  // Fetch standard or secure session cookies from BetterAuth
   const sessionCookie =
     request.cookies.get("better-auth.session_token") ||
     request.cookies.get("__Secure-better-auth.session_token");
 
-  // 1. If trying to access dashboard without being logged in
+  // Redirect to login if unauthenticated user attempts to access dashboard
   if (isDashboardRoute && !sessionCookie) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // 2. Role-Based Routing Protection inside Middleware
-  // Better-auth usually session data is fetched via API, but we can secure the sub-paths
+  // Handle role-based access control if session is valid
   if (sessionCookie) {
-    // Note: If you store user role in a separate cookie during login (e.g. 'user_role'), 
-    // you can strictly block here. For example:
     const userRole = request.cookies.get("user_role")?.value;
 
     if (userRole) {

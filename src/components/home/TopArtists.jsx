@@ -53,18 +53,22 @@ const TopArtists = () => {
       try {
         setError(null);
         setLoading(true);
+       
+        const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server-z4w8.onrender.com").replace(/\/$/, "");
         
-        const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server.onrender.com").replace(/\/$/, "");
-        const res = await fetch(`${base}/api/artists/top`);
+        const res = await fetch(`${base}/api/artists/top`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json"
+          }
+        });
+
         if (!res.ok) throw new Error("Failed to resolve dynamic top creators catalog.");
-        
+       
         const data = await res.json();
-        
-        const cleanData = Array.isArray(data) 
-          ? data
-              .filter((user) => user && user.role === "artist")
-              .sort((a, b) => (b.totalSold || 0) - (a.totalSold || 0))
-              .slice(0, 3)
+      
+        const cleanData = Array.isArray(data)
+          ? data.slice(0, 3)
           : [];
 
         if (isMounted) {
@@ -111,10 +115,15 @@ const TopArtists = () => {
             {loading
               ? [0, 1, 2].map((i) => <SkeletonCard key={i} />)
               : artists.map((artist, i) => {
-                  const artistRating = artist.rating ? Number(artist.rating).toFixed(1) : "5.0";
+                  // ব্যাকএন্ডের সম্ভাব্য প্রপার্টি ম্যাপিং সেফটি চেক
+                  const artistRating = artist.rating || artist.avgRating || "5.0";
                   const gradient = AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length];
-                  const dynamicImage = artist.image || artist.profileImage;
-                  const artistId = artist._id?.toString() || artist._id || i;
+                  const dynamicImage = artist.image || artist.profileImage || artist.avatar;
+                  const artistId = artist._id?.toString() || artist.id || artist._id || i;
+
+                  // ডাটাবেজের বিচিত্র ফিল্ড স্ট্রাকচার হ্যান্ডেল করার ব্যাকআপ প্রপার্টি স্কিম
+                  const totalArtworksCount = artist.totalArtworks ?? artist.totalArts ?? artist.artworksCount ?? 0;
+                  const totalSoldLines = artist.totalSold ?? artist.totalSales ?? artist.salesCount ?? 0;
 
                   return (
                     <div
@@ -127,7 +136,7 @@ const TopArtists = () => {
 
                       <div className="absolute top-4 right-4 bg-[#2f3f48]/90 backdrop-blur-md border border-white/5 px-2 py-0.5 rounded-lg flex items-center gap-1 z-10">
                         <FaStar className="text-amber-400 text-xs" />
-                        <span className="text-white text-[11px] font-bold">{artistRating}</span>
+                        <span className="text-white text-[11px] font-bold">{Number(artistRating).toFixed(1)}</span>
                       </div>
 
                       <div className="relative mb-4 mt-2">
@@ -154,10 +163,10 @@ const TopArtists = () => {
 
                       <div className="grid grid-cols-2 gap-2 mb-6 w-full">
                         {[
-                          { label: "Artworks", value: formatCount(artist.totalArtworks ?? artist.totalArts) },
-                          { label: "Sales", value: formatCount(artist.totalSold ?? artist.totalSales) },
+                          { label: "Artworks", value: formatCount(totalArtworksCount) },
+                          { label: "Sales", value: formatCount(totalSoldLines) },
                         ].map(({ label, value }) => (
-                          <div key={label} className="bg-white/4 border border-white/5 rounded-xl py-2.5 flex flex-col items-center gap-0.5">
+                          <div key={label} className="bg-white/5 border border-white/5 rounded-xl py-2.5 flex flex-col items-center gap-0.5">
                             <span className="text-[15px] font-bold text-[#df6742]">{value}</span>
                             <span className="text-[9px] text-white/30 uppercase tracking-[0.7px] font-semibold">{label}</span>
                           </div>
