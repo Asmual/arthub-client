@@ -8,12 +8,23 @@ import ReviewSection from "./ReviewSection";
 import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
+// Helper function to generate a valid backend JWT token using user email
+const getAuthToken = async (base, email) => {
+  const res = await fetch(`${base}/api/users/generate-token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) throw new Error("Token generation failed.");
+  const { token } = await res.json();
+  return token;
+};
+
 export default function ArtworkDetailsClient({ artwork }) {
   const { data: session, isPending } = authClient.useSession();
   const user = session?.user;
   const [isRedirecting, setIsRedirecting] = useState(false);
 
-  // Extract artist identifier accurately using explicit backend fields
   const artistId =
     artwork?.artistId ||
     artwork?.userId ||
@@ -55,33 +66,41 @@ export default function ArtworkDetailsClient({ artwork }) {
     setIsRedirecting(true);
 
     try {
-      const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
-      const targetToken = session?.token || "simulated-platform-admin-auth-token-string";
+      const base = (
+        process.env.NEXT_PUBLIC_API_URL ||
+        "https://arthub-server-z4w8.onrender.com"
+      ).replace(/\/$/, "");
 
-      // Precise tracking call to singular form endpoint matching express mounting route
+      // Fetch fresh backend validated JWT token to completely avoid 403 Forbidden issues
+      const targetToken = await getAuthToken(base, user.email);
+
       const response = await fetch(
-  `${base}/api/payment/create-checkout-session`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${targetToken}`,
-          "email": user.email,
-          "user-email": user.email
+        `${base}/api/payment/create-checkout-session`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${targetToken}`,
+          },
+          body: JSON.stringify({
+            artworkId: artwork._id || artworkId,
+            price: Number(artwork.price),
+            artworkName: artwork.title,
+            userEmail: user.email,
+            buyerEmail: user.email,
+            userId: user.id,
+          }),
         },
-        body: JSON.stringify({
-          artworkId: artwork._id,
-          price: Number(artwork.price),
-          artworkName: artwork.title,
-          userEmail: user.email,
-          buyerEmail: user.email,
-          userId: user.id
-        }),
-      });
+      );
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || data.error || "Failed to initiate payment redirection.");
+        throw new Error(
+          data.message ||
+            data.error ||
+            "Failed to initiate payment redirection.",
+        );
       }
 
       if (data.url) {
@@ -89,7 +108,6 @@ export default function ArtworkDetailsClient({ artwork }) {
       } else {
         throw new Error("Stripe secure gateway url missing from response.");
       }
-
     } catch (err) {
       console.error("Redirection pipeline checkpoint error:", err);
       toast.error(err.message || "An unexpected network fault occurred.");

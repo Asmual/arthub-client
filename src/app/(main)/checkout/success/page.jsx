@@ -3,31 +3,46 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
-import { CheckCircle, Loader2, Home } from "lucide-react";
+import { CheckCircle, Loader2, CreditCard } from "lucide-react";
 import toast from "react-hot-toast";
+
+// Helper to retrieve a valid backend-validated JWT token matching database pipeline context
+const getAuthToken = async (base, email) => {
+  const res = await fetch(`${base}/api/users/generate-token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) throw new Error("Token generation failed.");
+  const { token } = await res.json();
+  return token;
+};
 
 export default function SuccessPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const sessionId = searchParams.get("session_id");
   const { data: session, isPending: authLoading } = authClient.useSession();
-  
+ 
   const [syncing, setSyncing] = useState(true);
   const syncExecuted = useRef(false); // Guard variable to intercept StrictMode duplicate rendering leaks
 
   useEffect(() => {
-    if (authLoading || !sessionId || !session?.user || syncExecuted.current) return;
+    if (authLoading || !sessionId || !session?.user?.email || syncExecuted.current) return;
 
     const synchronizeDatabaseLedger = async () => {
       try {
         syncExecuted.current = true;
-        const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
+        const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server-z4w8.onrender.com").replace(/\/$/, "");
+
+        // Fetch fresh backend validated authentication bearer context
+        const backendToken = await getAuthToken(base, session.user.email);
 
         const res = await fetch(`${base}/api/payment/verify-payment-sync`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${session?.token || ""}`
+            "Authorization": `Bearer ${backendToken}`
           },
           body: JSON.stringify({ sessionId })
         });
@@ -69,11 +84,11 @@ export default function SuccessPage() {
         <p className="text-white/60 text-sm leading-relaxed">
           Your premium checkout clearance pipeline passed validation. The purchased artwork is now logged to your client profile database configuration.
         </p>
-        <button 
-          onClick={() => router.push("/dashboard/user")}
+        <button
+          onClick={() => router.push("/dashboard/payment")}
           className="inline-flex items-center gap-2 mt-4 bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
         >
-          <Home className="w-4 h-4" /> Go To Dashboard
+          <CreditCard className="w-4 h-4" /> View Purchased Invoices
         </button>
       </div>
     </div>

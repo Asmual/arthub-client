@@ -6,10 +6,22 @@ import { authClient } from "@/lib/auth-client";
 import { Loader2, ShieldCheck } from "lucide-react";
 import toast from "react-hot-toast";
 
+// Helper to retrieve a valid backend-validated JWT token matching database pipeline context
+const getAuthToken = async (base, email) => {
+  const res = await fetch(`${base}/api/users/generate-token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) throw new Error("Token generation failed.");
+  const { token } = await res.json();
+  return token;
+};
+
 export default function CheckoutPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+ 
   // Dynamic extraction of parameters from URL query context
   const artworkId = searchParams.get("id");
   const artworkName = searchParams.get("title") || "Premium Selected Artwork";
@@ -27,7 +39,7 @@ export default function CheckoutPage() {
   }, [artworkId, orderPrice, authLoading, router]);
 
   const handleCheckout = async () => {
-    if (!session?.user) {
+    if (!session?.user?.email) {
       toast.error("Authentication required to invoke secure Stripe gateway.");
       router.push("/login");
       return;
@@ -36,21 +48,24 @@ export default function CheckoutPage() {
     setIsProcessing(true);
 
     try {
-      const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
-      
-      // FIXED: Switched plural '/api/payment/' to singular '/api/payment/' to match backend mounting prefixes
+      const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server-z4w8.onrender.com").replace(/\/$/, "");
+     
+      // Retrieve fresh secure backend valid JWT authentication token
+      const backendToken = await getAuthToken(base, session.user.email);
+
+      // Executing request to singular mounted endpoint prefix matching server setup
       const response = await fetch(`${base}/api/payment/create-checkout-session`, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${session?.token || ""}`,
-          "email": session?.user?.email,
-          "user-email": session?.user?.email
+          "Authorization": `Bearer ${backendToken}`,
+          "email": session.user.email,
+          "user-email": session.user.email
         },
         body: JSON.stringify({
           artworkId: artworkId,
           price: orderPrice,
-          userEmail: session?.user?.email // Added explicitly to satisfy backend schema loops
+          userEmail: session.user.email 
         }),
       });
 
@@ -76,8 +91,10 @@ export default function CheckoutPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#243239] flex items-center justify-center text-white">
-        <Loader2 className="w-8 h-8 animate-spin text-[#df6742]" />
+      <div className="min-h-screen bg-[#243239] flex flex-col items-center justify-center gap-2 text-white">
+        {/* FIXED: Changed invalid lowercase tag component to official Lucide spinner */}
+        <Loader2 className="w-8 h-8 text-[#df6742] animate-spin" />
+        <p className="text-xs text-white/50">Loading secure checkout tunnel...</p>
       </div>
     );
   }
@@ -85,7 +102,7 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-[#243239] text-white flex items-center justify-center p-6" style={{ fontFamily: "'Montserrat', sans-serif" }}>
       <div className="w-full max-w-md bg-[#1e262b] p-8 rounded-2xl border border-white/5 shadow-2xl text-center">
-        
+       
         <h2 className="text-2xl font-black text-white mb-2 tracking-wide">
           Secure <span className="text-[#df6742]">Checkout</span>
         </h2>

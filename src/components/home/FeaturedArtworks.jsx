@@ -25,19 +25,34 @@ const FeaturedArtworks = () => {
 
   useEffect(() => {
     let isMounted = true;
+    
     const fetchFeaturedArtworks = async () => {
       try {
         setError(null);
         setLoading(true);
-        
+       
         const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server-z4w8.onrender.com").replace(/\/$/, "");
-        const res = await fetch(`${base}/api/artworks/featured`);
         
+        // Added explicit cache controls to prevent 304 cache-locking issues
+        const res = await fetch(`${base}/api/artworks/featured`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+          }
+        });
+       
         if (!res.ok) throw new Error("Server responded with an unstable status.");
-        const data = await res.json();
-        
+        const responseData = await res.json();
+       
         if (isMounted) {
-          setArtworks(Array.isArray(data) ? data : []);
+          // Normalize payload array even if wrapped inside nested objects
+          const verifiedData = Array.isArray(responseData)
+            ? responseData
+            : responseData?.artworks || responseData?.data || [];
+            
+          setArtworks(verifiedData);
         }
       } catch (err) {
         console.error("Featured Artworks Fetch Error:", err);
@@ -50,6 +65,7 @@ const FeaturedArtworks = () => {
         }
       }
     };
+
     fetchFeaturedArtworks();
     return () => {
       isMounted = false;
@@ -59,17 +75,17 @@ const FeaturedArtworks = () => {
   return (
     <section className="bg-[#2a3942] py-20 px-6 border-t border-white/5">
       <div className="max-w-6xl mx-auto">
-        
+       
         <div className="flex flex-col items-center text-center mb-16 max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 bg-[#243239]/10 border border-[#df6742]/30 text-[#df6742] px-4 py-1.5 rounded-full text-[11px] font-bold tracking-wider mb-4">
             <span className="w-1.5 h-1.5 rounded-full bg-[#df6742]" />
             CURATED EXHIBITION
           </div>
-          
+         
           <h2 className="text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-tight">
             Featured <span className="text-[#df6742]">Artworks</span>
           </h2>
-          
+         
           <p className="text-sm md:text-base text-white/50 mt-4 leading-relaxed">
             Explore the most exclusive and recently updated masterpieces chosen by our curators.
           </p>
@@ -104,8 +120,6 @@ const FeaturedArtworks = () => {
               : artworks.map((artwork) => {
                   const artId = artwork._id?.$oid || artwork._id?.toString() || artwork.id;
                   const itemImage = artwork.image || artwork.imageUrl;
-                  
-                  // হ্যান্ডেল করা হলো আপনার ডেটাবেজের isSold ফিল্ডটি
                   const isItemSold = artwork.isSold === true || artwork.status === "Sold";
 
                   return (
@@ -121,14 +135,13 @@ const FeaturedArtworks = () => {
                             className="w-full h-full object-cover"
                           />
                         )}
-                        
+                       
                         <div className="absolute top-4 left-4 flex gap-2">
                           <span className="bg-black/60 backdrop-blur-md text-[10px] font-bold text-white px-2.5 py-1 rounded uppercase tracking-wider">
                             {artwork.category || "Artwork"}
                           </span>
                         </div>
 
-                        {/* ডাইনামিক ব্যাজ কালার এবং স্ট্যাটাস চেঞ্জার */}
                         <div className="absolute top-4 right-4">
                           <span className={`text-[10px] font-bold text-white px-2.5 py-1 rounded uppercase tracking-wider ${isItemSold ? "bg-red-500" : "bg-[#2ecc71]"}`}>
                             {isItemSold ? "Sold Out" : "Available"}
@@ -150,7 +163,7 @@ const FeaturedArtworks = () => {
                           <span className="text-[#df6742] text-xl font-bold">
                             ${artwork.price || "0"}
                           </span>
-                          
+                         
                           <NextLink
                             href={`/browse/${artId}`}
                             className="bg-[#df6742] hover:bg-[#c85734] text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors duration-200"

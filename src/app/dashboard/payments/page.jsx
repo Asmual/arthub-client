@@ -5,6 +5,18 @@ import { authClient } from "@/lib/auth-client";
 import { Loader2, CreditCard, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
+// Helper to get a valid backend validated token
+const getAuthToken = async (base, email) => {
+  const res = await fetch(`${base}/api/users/generate-token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) throw new Error("Token generation failed.");
+  const { token } = await res.json();
+  return token;
+};
+
 export default function BuyerPaymentHistory() {
   const { data: session, isPending: authLoading } = authClient.useSession();
   const user = session?.user;
@@ -13,14 +25,26 @@ export default function BuyerPaymentHistory() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.email) return;
 
     const fetchPaymentHistory = async () => {
       try {
-        const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
-        const response = await fetch(`${base}/api/payment/history/${user.id}`);
+        const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server-z4w8.onrender.com").replace(/\/$/, "");
+       
+        // Get valid JWT token for auth context
+        const token = await getAuthToken(base, user.email);
+
+        // Calling the correct backend route: /api/payment/my-orders
+        const response = await fetch(`${base}/api/payment/my-orders`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+       
         const data = await response.json();
-        
+       
         if (Array.isArray(data)) {
           setOrders(data);
         }
@@ -32,7 +56,7 @@ export default function BuyerPaymentHistory() {
     };
 
     fetchPaymentHistory();
-  }, [user?.id]);
+  }, [user?.email]);
 
   const formatBDDate = (dateString) => {
     if (!dateString) return "N/A";
@@ -86,14 +110,15 @@ export default function BuyerPaymentHistory() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-500/5">
+              {/* FIXED: Changed parameter from 'orders' to 'order' to perfectly match table data rows */}
               {orders.map((order) => (
                 <tr key={order._id} className="hover:bg-white/5 transition-colors">
                   <td className="p-4 font-bold text-neutral-200">
                     <div className="flex items-center gap-2">
-                      {/* Maps artworkDetails array join references parsed from aggregation lookup */}
-                      <span>{order.artworkDetails?.title || "Exclusive Artwork"}</span>
-                      {order.artworkDetails?._id && (
-                        <Link href={`/browse/${order.artworkDetails._id}`} className="text-neutral-500 hover:text-[#df6742] transition-colors">
+                      {/* Reading artworkTitle directly from db order schema */}
+                      <span>{order.artworkTitle || "Exclusive Artwork"}</span>
+                      {order.artworkId && (
+                        <Link href={`/browse/${order.artworkId}`} className="text-neutral-500 hover:text-[#df6742] transition-colors">
                           <ExternalLink className="w-3.5 h-3.5" />
                         </Link>
                       )}
@@ -103,14 +128,16 @@ export default function BuyerPaymentHistory() {
                     {order.transactionId}
                   </td>
                   <td className="p-4 font-black text-emerald-400">
-                    ${order.price?.toFixed(2)}
+                    {/* Reading order.amount ($350) dynamically based on database properties */}
+                    ${order.amount ? order.amount.toFixed(2) : "0.00"}
                   </td>
                   <td className="p-4 text-xs text-neutral-300">
-                    {formatBDDate(order.createdAt)}
+                    {/* Reading order.date dynamically matching database record parameters */}
+                    {formatBDDate(order.date)}
                   </td>
                   <td className="p-4 text-center">
                     <span className="inline-block text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/10">
-                      {order.status}
+                      Paid
                     </span>
                   </td>
                 </tr>
