@@ -1,27 +1,108 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useState } from "react";
-import { FaTrashAlt, FaEdit, FaThLarge, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
+import React, { useState, useEffect } from "react";
+import { FaTrashAlt, FaEdit, FaThLarge, FaCheckCircle, FaTimesCircle, FaSpinner } from "react-icons/fa";
+import { authClient } from "@/lib/auth-client";
+import toast from "react-hot-toast";
 
 export default function ManageArtworksPage() {
-  // Placeholder mock data simulating actual database state reports
-  const [artworks, setArtworks] = useState([
-    { _id: "1", title: "Liberation Force", price: 1200, category: "Painting", isSold: true, image: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?q=80&w=300" },
-    { _id: "2", title: "Serenity Echoes", price: 450, category: "Digital Art", isSold: false, image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=300" },
-  ]);
+  const { data: session, isPending: authLoading } = authClient.useSession();
+  const user = session?.user;
 
-  const handleDelete = (id) => {
-    if (confirm("Are you sure you want to remove this exclusive masterpiece?")) {
+  const [artworks, setArtworks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const base = (process.env.NEXT_PUBLIC_API_URL || "https://arthub-server-z4w8.onrender.com").replace(/\/$/, "");
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user?.email) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchMyArtworks = async () => {
+      try {
+        setLoading(true);
+
+        // Fetch catalog endpoint with large limit to safely process client filter
+        const res = await fetch(`${base}/api/artworks?limit=100`, {
+          method: "GET",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+          },
+        });
+
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Server returned HTML instead of JSON. Please check backend endpoint.");
+        }
+
+        if (!res.ok) throw new Error("Failed to load your exhibition inventory.");
+        const data = await res.json();
+
+        if (isMounted) {
+          // Extract the array from wrapper object property 'artworks'
+          const artworkList = data && Array.isArray(data.artworks) ? data.artworks : [];
+          
+          // Filter matching records matching the authorized artist metrics
+          const myArt = artworkList.filter(
+            (item) => item.artistEmail === user.email || item.artistName === user.name
+          );
+          
+          setArtworks(myArt);
+        }
+      } catch (err) {
+        console.error("Fetch inventory error:", err);
+        toast.error(err.message || "Failed to retrieve artwork records.");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchMyArtworks();
+    return () => { isMounted = false; };
+  }, [authLoading, user, base]);
+
+  const handleDelete = async (id) => {
+    if (!confirm("Are you sure you want to remove this exclusive masterpiece?")) return;
+
+    try {
+      const res = await fetch(`${base}/api/artworks/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Accept": "application/json"
+        },
+      });
+
+      if (!res.ok) throw new Error("Failed to delete the selected artwork.");
+      
+      toast.success("Masterpiece removed from gallery.");
       setArtworks((prev) => prev.filter((item) => item._id !== id));
+    } catch (err) {
+      console.error("Delete artwork error:", err);
+      toast.error(err.message || "Could not execute deletion request.");
     }
   };
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen bg-[#2f3f48] flex flex-col items-center justify-center text-white gap-3">
+        <FaSpinner className="animate-spin text-2xl text-[#df6742]" />
+        <p className="text-xs text-white/40">Synchronizing creative vault inventory...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#2f3f48] p-6 sm:p-10 text-white" style={{ fontFamily: "'Montserrat', sans-serif" }}>
       <div className="max-w-5xl mx-auto">
-        
-        {/* Header Block Section */}
+       
+        {/* Header Section */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -34,7 +115,7 @@ export default function ManageArtworksPage() {
           </div>
         </div>
 
-        {/* Dynamic Data Grid Table */}
+        {/* Data Grid Table */}
         <div className="bg-[#243239] border border-white/5 rounded-2xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -50,20 +131,16 @@ export default function ManageArtworksPage() {
               <tbody className="divide-y divide-white/5 text-sm">
                 {artworks.map((art) => (
                   <tr key={art._id} className="hover:bg-white/2 transition-colors duration-150">
-                    
-                    {/* Media Node Frame Info */}
+                   
                     <td className="p-4 pl-6 flex items-center gap-3">
                       <img src={art.image} alt={art.title} className="w-12 h-12 rounded-lg object-cover bg-neutral-800 border border-white/5" />
                       <span className="font-bold text-white truncate max-w-45">{art.title}</span>
                     </td>
-                    
-                    {/* Category Label */}
+                   
                     <td className="p-4 text-white/60 font-medium">{art.category}</td>
-                    
-                    {/* Numeric Price Tag */}
-                    <td className="p-4 font-bold text-[#df6742]">${art.price.toFixed(2)}</td>
-                    
-                    {/* Dynamic Availability Status */}
+                   
+                    <td className="p-4 font-bold text-[#df6742]">${Number(art.price || 0).toFixed(2)}</td>
+                   
                     <td className="p-4">
                       {art.isSold ? (
                         <span className="inline-flex items-center gap-1.5 bg-red-500/10 text-red-400 text-[10px] font-bold px-2.5 py-1 rounded-md uppercase">
@@ -76,7 +153,6 @@ export default function ManageArtworksPage() {
                       )}
                     </td>
 
-                    {/* Operational Trigger Controls */}
                     <td className="p-4 text-center pr-6">
                       <div className="flex items-center justify-center gap-2">
                         <button className="p-2 bg-[#2f3f48] hover:bg-white/10 text-white/70 hover:text-white rounded-lg transition-colors border border-white/5" title="Edit Metadata">
@@ -93,7 +169,7 @@ export default function ManageArtworksPage() {
               </tbody>
             </table>
           </div>
-          
+         
           {artworks.length === 0 && (
             <p className="text-center text-xs text-white/30 py-12">No artworks discovered inside your creative dashboard studio.</p>
           )}
