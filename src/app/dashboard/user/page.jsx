@@ -2,23 +2,29 @@
 
 import React, { useState, useEffect } from "react";
 import { authClient } from "@/lib/auth-client";
-import { ShoppingCart, MessageSquare, Star, Trash2, ShieldCheck, User } from "lucide-react";
+import { ShoppingCart, MessageSquare, Star, User } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function ArtworkDetailsClient({ artwork }) {
   const { data: session } = authClient.useSession();
   const currentUser = session?.user;
-  
+ 
   const [reviews, setReviews] = useState([]);
   const [comment, setComment] = useState("");
   const [rating, setRating] = useState(5);
   const [submitting, setSubmitting] = useState(false);
 
-  const isSold = artwork.status?.toLowerCase() === "sold" || artwork.totalSold >= artwork.totalArtworks;
+  /* Safe fallback evaluation for static build parameters */
+  const isSold = 
+    artwork?.status?.toLowerCase() === "sold" || 
+    artwork?.isSold === true ||
+    (artwork?.totalSold !== undefined && artwork?.totalArtworks !== undefined && artwork.totalSold >= artwork.totalArtworks);
+
   const base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/$/, "");
 
-  // ১. এই আর্টওয়ার্কের নির্দিষ্ট রিভিউগুলো লোড করার ইফেক্ট
   useEffect(() => {
+    if (!artwork?._id) return;
+    
     const fetchReviews = async () => {
       try {
         const res = await fetch(`${base}/api/reviews/artwork/${artwork._id}`);
@@ -31,21 +37,19 @@ export default function ArtworkDetailsClient({ artwork }) {
       }
     };
     fetchReviews();
-  }, [artwork._id, base]);
+  }, [artwork?._id, base]);
 
-  // ২. রিভিউ সাবমিট করার হ্যান্ডলার (এক্সপ্রেস ব্যাকএন্ড JWT প্রটেকশনসহ)
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     if (!currentUser) {
       toast.error("Please login to leave a review!");
       return;
     }
-    if (!comment.trim()) return;
+    if (!comment.trim() || !artwork?._id) return;
 
     try {
       setSubmitting(true);
-      
-      // এক্সপ্রেস ব্যাকএন্ডের জন্য টোকেন জেনারেট
+     
       const tokenRes = await fetch(`${base}/api/users/generate-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -87,34 +91,31 @@ export default function ArtworkDetailsClient({ artwork }) {
   return (
     <div className="min-h-screen bg-[#1e292f] text-white p-6 sm:p-12">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10">
-        
-        {/* বাম পাশ: আর্টওয়ার্ক ইমেজ */}
+       
         <div className="bg-[#243239] rounded-2xl overflow-hidden border border-white/5 shadow-2xl flex items-center justify-center p-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img 
-            src={artwork.image || "/placeholder-art.jpg"} 
-            alt={artwork.title || "Artwork"} 
+          <img
+            src={artwork?.image || artwork?.imageUrl || "/placeholder-art.jpg"}
+            alt={artwork?.title || "Artwork"}
             className="rounded-xl max-h-[500px] object-contain w-full hover:scale-[1.01] transition-all"
           />
         </div>
 
-        {/* ডান পাশ: আর্টওয়ার্কের ডিটেইলস ও পারচেজ বাটন */}
         <div className="space-y-6 flex flex-col justify-between">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${isSold ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
                 {isSold ? "Sold Out" : "Available"}
               </span>
-              <span className="text-sm font-mono text-white/40">Specialty: {artwork.specialty || "N/A"}</span>
+              <span className="text-sm font-mono text-white/40">Specialty: {artwork?.specialty || "N/A"}</span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-black tracking-wide">{artwork.title || "Untitled Masterpiece"}</h1>
-            
-            {/* আর্টিস্ট প্রোফাইল সাব-কার্ড */}
-            {artwork.artist && (
+            <h1 className="text-3xl sm:text-4xl font-black tracking-wide">{artwork?.title || "Untitled Masterpiece"}</h1>
+           
+            {artwork?.artist && (
               <div className="flex items-center gap-3 bg-[#243239] p-3 rounded-xl border border-white/5 w-fit">
                 <div className="w-10 h-10 rounded-full bg-[#df6742]/20 flex items-center justify-center text-[#df6742] font-bold">
-                  {artwork.artist.name?.[0] || <User />}
+                  {artwork?.artist?.name?.[0] || <User />}
                 </div>
                 <div>
                   <p className="text-xs text-white/40">Created By</p>
@@ -124,15 +125,14 @@ export default function ArtworkDetailsClient({ artwork }) {
             )}
 
             <p className="text-white/70 text-sm leading-relaxed bg-[#243239]/40 p-4 rounded-xl border border-white/5">
-              {artwork.bio || artwork.description || "No description provided for this artwork."}
+              {artwork?.bio || artwork?.description || "No description provided for this artwork."}
             </p>
           </div>
 
-          {/* প্রাইজ এবং অ্যাকশন এরিয়া */}
           <div className="bg-[#243239] p-6 rounded-2xl border border-white/5 space-y-4 shadow-lg">
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-white/40 font-bold uppercase">Price</span>
-              <span className="text-3xl font-black text-[#df6742]">${Number(artwork.price || 0).toFixed(2)}</span>
+              <span className="text-3xl font-black text-[#df6742]">${Number(artwork?.price || 0).toFixed(2)}</span>
             </div>
 
             <button
@@ -146,10 +146,8 @@ export default function ArtworkDetailsClient({ artwork }) {
         </div>
       </div>
 
-      {/* --- রিভিউ ও কমেন্ট সেকশন --- */}
       <div className="max-w-6xl mx-auto mt-16 border-t border-white/5 pt-10 grid grid-cols-1 lg:grid-cols-3 gap-10">
-        
-        {/* রিভিউ দেওয়ার ফর্ম */}
+       
         <div className="lg:col-span-1 bg-[#243239] p-5 rounded-xl border border-white/5 h-fit space-y-4">
           <div>
             <h3 className="text-base font-bold text-white flex items-center gap-2">
@@ -161,8 +159,8 @@ export default function ArtworkDetailsClient({ artwork }) {
           <form onSubmit={handleReviewSubmit} className="space-y-4">
             <div className="space-y-1">
               <label className="text-xs text-white/60 font-medium">Rating</label>
-              <select 
-                value={rating} 
+              <select
+                value={rating}
                 onChange={(e) => setRating(Number(e.target.value))}
                 className="w-full bg-black/20 border border-white/10 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-[#df6742]"
               >
@@ -193,10 +191,9 @@ export default function ArtworkDetailsClient({ artwork }) {
           </form>
         </div>
 
-        {/* রিভিউ লিস্ট ডিসপ্লে */}
         <div className="lg:col-span-2 space-y-4">
           <h3 className="text-base font-bold text-white">Collector Reviews ({reviews.length})</h3>
-          
+         
           <div className="space-y-3 max-h-[450px] overflow-y-auto pr-2 custom-scrollbar">
             {reviews.length === 0 ? (
               <p className="text-xs text-white/30 italic py-6">No reviews yet for this masterpiece. Be the first to share your opinion!</p>
@@ -211,7 +208,7 @@ export default function ArtworkDetailsClient({ artwork }) {
                       <span className="text-xs font-bold text-white/80">{rev.userName || "Anonymous"}</span>
                     </div>
                     <div className="flex items-center gap-0.5 text-amber-400">
-                      {[...Array(rev.rating)].map((_, i) => (
+                      {[...Array(rev.rating || 5)].map((_, i) => (
                         <Star key={i} className="w-3 h-3 fill-current" />
                       ))}
                     </div>
